@@ -57,7 +57,7 @@ func randSpace(field [][]*fieldSpace, spaceFunc func(space *fieldSpace) bool) (s
 	return
 }
 
-func newBoard(width, height, mines int) (field [][]*fieldSpace) {
+func newField(width, height, mines int) (field [][]*fieldSpace) {
 	for i := 0; i < height; i++ {
 		row := []*fieldSpace{}
 		for j := 0; j < width; j++ {
@@ -79,11 +79,11 @@ func newBoard(width, height, mines int) (field [][]*fieldSpace) {
 	return
 }
 
-func printBoard(field [][]*fieldSpace) {
+func showField(field [][]*fieldSpace) {
 	black := color.New(color.BgBlack, color.FgWhite).PrintfFunc()
 	white := color.New(color.BgWhite).PrintfFunc()
-	yellow := color.New(color.BgYellow).PrintFunc()
-	red := color.New(color.BgRed).PrintFunc()
+	yellow := color.New(color.BgYellow, color.FgBlack).PrintFunc()
+	red := color.New(color.BgRed, color.FgBlack).PrintFunc()
 	fmt.Println()
 	for _, row := range field {
 		for _, space := range row {
@@ -92,14 +92,14 @@ func printBoard(field [][]*fieldSpace) {
 			case revealed:
 				switch space.value {
 				case -1:
-					red(" ")
+					red("*")
 				case 0:
 					black(" ")
 				default:
 					black(strconv.Itoa(space.value))
 				}
 			case flagged:
-				yellow(" ")
+				yellow("*")
 			case unknown:
 				white(" ")
 			}
@@ -131,7 +131,7 @@ func revealNeighbors(space *fieldSpace, field [][]*fieldSpace) {
 	})
 }
 
-func nextMove(field [][]*fieldSpace) *fieldSpace {
+func nextAction(field [][]*fieldSpace) *fieldSpace {
 	for _, row := range field {
 		for _, space := range row {
 			if space.state == revealed && space.value > 0 {
@@ -171,27 +171,34 @@ func main() {
 	width := flag.Int("width", 20, "width of the field")
 	height := flag.Int("height", 20, "height of the field")
 	mines := flag.Int("mines", 50, "number of mines")
+	show := flag.Bool("show", true, "show all actions")
 	flag.Parse()
 	rand.Seed(time.Now().UTC().UnixNano())
-	for {
-		field := newBoard(*width, *height, *mines)
-		for done := false; !done; {
-			space := nextMove(field)
-			printBoard(field)
-			if space.state == revealed {
-				switch space.value {
-				case -1:
-					fmt.Println("Game lost.")
-					done = true
-				case 0:
-					revealNeighbors(space, field)
-				}
-			}
-			if !done && allKnown(field) {
-				fmt.Println("Game won!")
+	field := newField(*width, *height, *mines)
+	startTime := time.Now()
+	var endTime time.Time
+	for done := false; !done; {
+		space := nextAction(field)
+		if *show {
+			showField(field)
+		}
+		if space.state == revealed {
+			switch space.value {
+			case -1:
+				endTime = time.Now()
+				showField(field)
+				fmt.Println("Game lost.")
 				done = true
+			case 0:
+				revealNeighbors(space, field)
 			}
-			time.Sleep(time.Second / 4)
+		}
+		if !done && allKnown(field) {
+			endTime = time.Now()
+			showField(field)
+			fmt.Println("Game won!")
+			done = true
 		}
 	}
+	fmt.Println("Time elapsed:", endTime.Sub(startTime))
 }
