@@ -1,0 +1,4 @@
+package: github.com/ngpitt/minesweeper
+import:
+- package: github.com/fatih/color
+  version: HEAD
