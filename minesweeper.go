@@ -179,11 +179,9 @@ func main() {
 	startTime := time.Now()
 	var endTime time.Time
 	for done := false; !done; {
-		if *show {
-			time.Sleep(*duration)
-		}
 		space := nextAction(field)
 		if *show {
+			time.Sleep(*duration)
 			showField(field)
 		}
 		if space.state == revealed {
