@@ -171,6 +171,7 @@ func main() {
 	width := flag.Int("width", 20, "width of the field")
 	height := flag.Int("height", 20, "height of the field")
 	mines := flag.Int("mines", 50, "number of mines")
+	duration := flag.Duration("duration", time.Second/2, "action duration")
 	show := flag.Bool("show", true, "show all actions")
 	flag.Parse()
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -178,6 +179,9 @@ func main() {
 	startTime := time.Now()
 	var endTime time.Time
 	for done := false; !done; {
+		if *show {
+			time.Sleep(*duration)
+		}
 		space := nextAction(field)
 		if *show {
 			showField(field)
