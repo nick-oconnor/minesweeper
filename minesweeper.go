@@ -17,10 +17,11 @@ const (
 )
 
 type fieldSpace struct {
-	row   int
-	col   int
-	value int
-	state int
+	value            int
+	state            int
+	neighbors        []*fieldSpace
+	unknownNeighbors []*fieldSpace
+	mineNeighbors    []*fieldSpace
 }
 
 func max(a, b int) int {
@@ -37,46 +38,110 @@ func min(a, b int) int {
 	return b
 }
 
-func allNeighbors(target *fieldSpace, field [][]*fieldSpace, spaceFunc func(space *fieldSpace)) {
-	for _, row := range field[max(0, target.row-1) : min(len(field)-1, target.row+1)+1] {
-		for _, space := range row[max(0, target.col-1) : min(len(row)-1, target.col+1)+1] {
-			spaceFunc(space)
-		}
-	}
-}
-
-func randSpace(field [][]*fieldSpace, spaceFunc func(space *fieldSpace) bool) (space *fieldSpace) {
-	for {
-		row := rand.Intn(len(field))
-		col := rand.Intn(len(field[0]))
-		space = field[row][col]
-		if spaceFunc(space) {
-			break
-		}
-	}
-	return
-}
-
 func newField(width, height, mines int) (field [][]*fieldSpace) {
 	for i := 0; i < height; i++ {
 		row := []*fieldSpace{}
 		for j := 0; j < width; j++ {
-			row = append(row, &fieldSpace{i, j, 0, unknown})
+			row = append(row, &fieldSpace{0, unknown, []*fieldSpace{}, []*fieldSpace{}, []*fieldSpace{}})
 		}
 		field = append(field, row)
 	}
-	for i := 0; i < mines; i++ {
-		space := randSpace(field, func(space *fieldSpace) bool {
-			return space.value != -1
-		})
-		space.value = -1
-		allNeighbors(space, field, func(space *fieldSpace) {
-			if space.value != -1 {
-				space.value++
+	for i, row := range field {
+		for j, space := range row {
+			for _, row := range field[max(0, i-1) : min(height-1, i+1)+1] {
+				for _, n := range row[max(0, j-1) : min(width-1, j+1)+1] {
+					if n != space {
+						space.neighbors = append(space.neighbors, n)
+						space.unknownNeighbors = append(space.unknownNeighbors, n)
+					}
+				}
 			}
-		})
+		}
+	}
+	for i := 0; i < mines; i++ {
+		var space *fieldSpace
+		for {
+			space = field[rand.Intn(height)][rand.Intn(width)]
+			if space.value != -1 {
+				break
+			}
+		}
+		space.value = -1
+		for _, n := range space.neighbors {
+			if n.value != -1 {
+				n.value++
+			}
+		}
 	}
 	return
+}
+
+func remove(slice []*fieldSpace, space *fieldSpace) []*fieldSpace {
+	for i, e := range slice {
+		if space == e {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}
+
+func changeState(space *fieldSpace, state int, known *int) {
+	space.state = state
+	*known++
+	for _, n := range space.neighbors {
+		if state != unknown {
+			n.unknownNeighbors = remove(n.unknownNeighbors, space)
+		}
+		if state == flagged {
+			n.mineNeighbors = append(n.mineNeighbors, space)
+		}
+	}
+}
+
+func nextAction(edgeSpaces []*fieldSpace, field [][]*fieldSpace, known *int) *fieldSpace {
+	for i := 0; i < len(edgeSpaces); i++ {
+		e := edgeSpaces[i]
+		if len(e.unknownNeighbors) == 0 {
+			edgeSpaces = append(edgeSpaces[:i], edgeSpaces[i+1:]...)
+			i--
+			continue
+		}
+		n := e.unknownNeighbors[len(e.unknownNeighbors)-1]
+		switch e.value - len(e.mineNeighbors) {
+		case 0:
+			changeState(n, revealed, known)
+			return n
+		case len(e.unknownNeighbors):
+			changeState(n, flagged, known)
+			return n
+		}
+	}
+	var n *fieldSpace
+	for {
+		n = field[rand.Intn(len(field))][rand.Intn(len(field[0]))]
+		if n.state == unknown {
+			break
+		}
+	}
+	changeState(n, revealed, known)
+	return n
+}
+
+func revealNeighbors(space *fieldSpace, edgeSpaces []*fieldSpace, known *int) []*fieldSpace {
+	unknownNeighbors := space.unknownNeighbors
+	space.unknownNeighbors = []*fieldSpace{}
+	for _, n := range unknownNeighbors {
+		changeState(n, revealed, known)
+		if n.value != 0 {
+			edgeSpaces = append(edgeSpaces, n)
+		}
+	}
+	for _, n := range unknownNeighbors {
+		if n.value == 0 {
+			edgeSpaces = revealNeighbors(n, edgeSpaces, known)
+		}
+	}
+	return edgeSpaces
 }
 
 func showField(field [][]*fieldSpace) {
@@ -109,64 +174,6 @@ func showField(field [][]*fieldSpace) {
 	fmt.Println()
 }
 
-func allKnown(field [][]*fieldSpace) bool {
-	for _, row := range field {
-		for _, space := range row {
-			if space.state == unknown {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func revealNeighbors(space *fieldSpace, field [][]*fieldSpace) {
-	allNeighbors(space, field, func(space *fieldSpace) {
-		if space.state == unknown {
-			space.state = revealed
-			if space.value == 0 {
-				revealNeighbors(space, field)
-			}
-		}
-	})
-}
-
-func nextAction(field [][]*fieldSpace) *fieldSpace {
-	for _, row := range field {
-		for _, space := range row {
-			if space.state == revealed && space.value > 0 {
-				unknowns := []*fieldSpace{}
-				mines := []*fieldSpace{}
-				allNeighbors(space, field, func(s *fieldSpace) {
-					switch s.state {
-					case unknown:
-						unknowns = append(unknowns, s)
-					case flagged:
-						mines = append(mines, s)
-					}
-				})
-				if len(unknowns) == 0 {
-					continue
-				}
-				s := unknowns[0]
-				switch space.value - len(mines) {
-				case 0:
-					s.state = revealed
-					return s
-				case len(unknowns):
-					s.state = flagged
-					return s
-				}
-			}
-		}
-	}
-	space := randSpace(field, func(space *fieldSpace) bool {
-		return space.state == unknown
-	})
-	space.state = revealed
-	return space
-}
-
 func main() {
 	width := flag.Int("width", 20, "width of the field")
 	height := flag.Int("height", 20, "height of the field")
@@ -176,10 +183,16 @@ func main() {
 	flag.Parse()
 	rand.Seed(time.Now().UTC().UnixNano())
 	field := newField(*width, *height, *mines)
+	edgeSpaces := []*fieldSpace{}
 	startTime := time.Now()
+	known := 0
 	var endTime time.Time
-	for done := false; !done; {
-		space := nextAction(field)
+	var space *fieldSpace
+	defer func() {
+		fmt.Println("Time elapsed:", endTime.Sub(startTime))
+	}()
+	for known < *width**height {
+		space = nextAction(edgeSpaces, field, &known)
 		if *show {
 			time.Sleep(*duration)
 			showField(field)
@@ -190,17 +203,15 @@ func main() {
 				endTime = time.Now()
 				showField(field)
 				fmt.Println("Game lost.")
-				done = true
+				return
 			case 0:
-				revealNeighbors(space, field)
+				edgeSpaces = revealNeighbors(space, edgeSpaces, &known)
+			default:
+				edgeSpaces = append(edgeSpaces, space)
 			}
 		}
-		if !done && allKnown(field) {
-			endTime = time.Now()
-			showField(field)
-			fmt.Println("Game won!")
-			done = true
-		}
 	}
-	fmt.Println("Time elapsed:", endTime.Sub(startTime))
+	endTime = time.Now()
+	showField(field)
+	fmt.Println("Game won!")
 }
