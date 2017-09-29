@@ -132,7 +132,7 @@ func revealNeighbors(space *fieldSpace, edgeSpaces []*fieldSpace, known *int) []
 	space.unknownNeighbors = []*fieldSpace{}
 	for _, n := range unknownNeighbors {
 		changeState(n, revealed, known)
-		if n.value != 0 {
+		if n.value > 0 {
 			edgeSpaces = append(edgeSpaces, n)
 		}
 	}
