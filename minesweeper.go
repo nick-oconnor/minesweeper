@@ -2,12 +2,10 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 
-	"github.com/fatih/color"
+	"github.com/buger/goterm"
 )
 
 const (
@@ -145,33 +143,29 @@ func revealNeighbors(space *fieldSpace, edgeSpaces []*fieldSpace, known *int) []
 }
 
 func showField(field [][]*fieldSpace) {
-	black := color.New(color.BgBlack, color.FgWhite).PrintfFunc()
-	white := color.New(color.BgWhite).PrintfFunc()
-	yellow := color.New(color.BgYellow, color.FgBlack).PrintFunc()
-	red := color.New(color.BgRed, color.FgBlack).PrintFunc()
-	fmt.Println()
+	goterm.MoveCursor(1, 1)
 	for _, row := range field {
 		for _, space := range row {
-			fmt.Print("|")
+			goterm.Print("|")
 			switch space.state {
 			case revealed:
 				switch space.value {
 				case -1:
-					red("*")
+					goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.RED))
 				case 0:
-					black(" ")
+					goterm.Print(" ")
 				default:
-					black(strconv.Itoa(space.value))
+					goterm.Print(space.value)
 				}
 			case flagged:
-				yellow("*")
+				goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.YELLOW))
 			case unknown:
-				white(" ")
+				goterm.Print(goterm.Background(" ", goterm.WHITE))
 			}
 		}
-		fmt.Println("|")
+		goterm.Println("|")
 	}
-	fmt.Println()
+	goterm.Flush()
 }
 
 func main() {
@@ -179,30 +173,24 @@ func main() {
 	height := flag.Int("height", 20, "height of the field")
 	mines := flag.Int("mines", 50, "number of mines")
 	duration := flag.Duration("duration", time.Second/2, "action duration")
-	show := flag.Bool("show", true, "show all actions")
 	flag.Parse()
 	rand.Seed(time.Now().UTC().UnixNano())
 	field := newField(*width, *height, *mines)
 	edgeSpaces := []*fieldSpace{}
 	startTime := time.Now()
 	known := 0
-	var endTime time.Time
-	var space *fieldSpace
 	defer func() {
-		fmt.Println("Time elapsed:", endTime.Sub(startTime))
+		goterm.Println("Time elapsed:", time.Now().Sub(startTime))
+		goterm.Flush()
 	}()
+	goterm.Clear()
 	for known < *width**height {
-		space = nextAction(edgeSpaces, field, &known)
-		if *show {
-			time.Sleep(*duration)
-			showField(field)
-		}
+		space := nextAction(edgeSpaces, field, &known)
 		if space.state == revealed {
 			switch space.value {
 			case -1:
-				endTime = time.Now()
 				showField(field)
-				fmt.Println("Game lost.")
+				goterm.Println("\nGame lost.")
 				return
 			case 0:
 				edgeSpaces = revealNeighbors(space, edgeSpaces, &known)
@@ -210,8 +198,8 @@ func main() {
 				edgeSpaces = append(edgeSpaces, space)
 			}
 		}
+		time.Sleep(*duration)
+		showField(field)
 	}
-	endTime = time.Now()
-	showField(field)
-	fmt.Println("Game won!")
+	goterm.Println("\nGame won!")
 }
