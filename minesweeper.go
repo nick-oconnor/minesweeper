@@ -190,7 +190,7 @@ func main() {
 			switch space.value {
 			case -1:
 				showField(field)
-				goterm.Println("\nGame lost.")
+				goterm.Println("Game lost.")
 				return
 			case 0:
 				edgeSpaces = revealNeighbors(space, edgeSpaces, &known)
@@ -201,5 +201,5 @@ func main() {
 		time.Sleep(*duration)
 		showField(field)
 	}
-	goterm.Println("\nGame won!")
+	goterm.Println("Game won!")
 }
