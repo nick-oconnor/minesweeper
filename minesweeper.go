@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/buger/goterm"
@@ -17,6 +18,7 @@ const (
 type fieldSpace struct {
 	value            int
 	state            int
+	edgeSpace        bool
 	neighbors        []*fieldSpace
 	unknownNeighbors []*fieldSpace
 	mineNeighbors    []*fieldSpace
@@ -40,7 +42,7 @@ func newField(width, height, mines int) (field [][]*fieldSpace) {
 	for i := 0; i < height; i++ {
 		row := []*fieldSpace{}
 		for j := 0; j < width; j++ {
-			row = append(row, &fieldSpace{0, unknown, []*fieldSpace{}, []*fieldSpace{}, []*fieldSpace{}})
+			row = append(row, &fieldSpace{0, unknown, false, []*fieldSpace{}, []*fieldSpace{}, []*fieldSpace{}})
 		}
 		field = append(field, row)
 	}
@@ -100,6 +102,7 @@ func nextAction(edgeSpaces []*fieldSpace, field [][]*fieldSpace, known *int) *fi
 	for i := 0; i < len(edgeSpaces); i++ {
 		e := edgeSpaces[i]
 		if len(e.unknownNeighbors) == 0 {
+			e.edgeSpace = false
 			edgeSpaces = append(edgeSpaces[:i], edgeSpaces[i+1:]...)
 			i--
 			continue
@@ -131,6 +134,7 @@ func revealNeighbors(space *fieldSpace, edgeSpaces []*fieldSpace, known *int) []
 	for _, n := range unknownNeighbors {
 		changeState(n, revealed, known)
 		if n.value > 0 {
+			n.edgeSpace = true
 			edgeSpaces = append(edgeSpaces, n)
 		}
 	}
@@ -151,16 +155,38 @@ func showField(field [][]*fieldSpace) {
 			case revealed:
 				switch space.value {
 				case -1:
-					goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.RED))
+					if space.edgeSpace {
+						goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.BLUE))
+
+					} else {
+						goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.RED))
+					}
 				case 0:
-					goterm.Print(" ")
+					if space.edgeSpace {
+						goterm.Print(goterm.Background(" ", goterm.BLUE))
+					} else {
+						goterm.Print(" ")
+					}
 				default:
-					goterm.Print(space.value)
+					if space.edgeSpace {
+						goterm.Print(goterm.Background(strconv.Itoa(space.value), goterm.BLUE))
+					} else {
+						goterm.Print(space.value)
+					}
 				}
 			case flagged:
-				goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.YELLOW))
+				if space.edgeSpace {
+					goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.BLUE))
+
+				} else {
+					goterm.Print(goterm.Background(goterm.Color("*", goterm.BLACK), goterm.YELLOW))
+				}
 			case unknown:
-				goterm.Print(goterm.Background(" ", goterm.WHITE))
+				if space.edgeSpace {
+					goterm.Print(goterm.Background(" ", goterm.BLUE))
+				} else {
+					goterm.Print(goterm.Background(" ", goterm.WHITE))
+				}
 			}
 		}
 		goterm.Println("|")
@@ -195,6 +221,7 @@ func main() {
 			case 0:
 				edgeSpaces = revealNeighbors(space, edgeSpaces, &known)
 			default:
+				space.edgeSpace = true
 				edgeSpaces = append(edgeSpaces, space)
 			}
 		}
