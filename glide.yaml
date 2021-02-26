@@ -1,4 +1,0 @@
-package: github.com/ngpitt/minesweeper
-import:
-- package: github.com/buger/goterm
-  version: HEAD
