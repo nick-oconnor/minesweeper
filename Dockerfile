@@ -7,9 +7,9 @@ COPY go.sum ./
 
 RUN go mod download
 
-COPY sim/ ./sim
-COPY solvers/ ./solvers
-COPY main.go ./
+COPY field/ ./field
+COPY solver/ ./solver
+COPY *.go ./
 
 RUN go build -v -o /minesweeper
 
