@@ -1,8 +1,7 @@
 module github.com/nick-oconnor/minesweeper
 
-go 1.16
+go 1.20
 
-require (
-	github.com/buger/goterm v0.0.0-20200322175922-2f3e71b85129
-	golang.org/x/sys v0.0.0-20210220050731-9a76102bfb43 // indirect
-)
+require github.com/buger/goterm v1.0.4
+
+require golang.org/x/sys v0.0.0-20210331175145-43e1dd70ce54 // indirect
