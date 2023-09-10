@@ -1,0 +1,22 @@
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: minesweeper-benchmark
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: minesweeper-benchmark
+    spec:
+      containers:
+        - name: minesweeper
+          image: registry.ocnr.org/apps/minesweeper/main:latest
+          command:
+            - /bin/sh
+            - -c
+            - time /minesweeper -width=9 -height=9 -mines=10 -games=1000000 -progress=false && time /minesweeper -width=16 -height=16 -mines=40 -games=1000000 -progress=false && time /minesweeper -width=30 -height=16 -mines=99 -games=1000000 -progress=false
+      tolerations:
+        - key: node-role.kubernetes.io/jobs
+          operator: Exists
+          effect: NoExecute
+      restartPolicy: Never

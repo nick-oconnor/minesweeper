@@ -1,21 +1,36 @@
 package solver
 
 import (
-	"fmt"
 	"testing"
 
-	. "gitlab.ocnr.org/apps/minesweeper/field"
+	"gitlab.ocnr.org/apps/minesweeper/field"
+	"gitlab.ocnr.org/apps/minesweeper/matrix"
 )
+
+// TestReadme readme example.
+func TestReadme(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{"R", " ", " "},
+		{" ", " ", "M"},
+		{" ", "M", " "},
+	})
+	solve(t, f)
+	assert(t, f, [][]string{
+		{"R", "R", "R"},
+		{"R", "R", "F"},
+		{"R", "F", "R"},
+	})
+}
 
 // TestSingleBasic tests basic deduction.
 func TestSingleBasic(t *testing.T) {
-	solver := newTestSolver(t, [][]string{
+	f := newTestField(t, [][]string{
 		{"M", "M", "M"},
 		{" ", " ", " "},
 		{"R", " ", " "},
 	})
-	solver.solve()
-	solver.assert([][]string{
+	solve(t, f)
+	assert(t, f, [][]string{
 		{"F", "F", "F"},
 		{"R", "R", "R"},
 		{"R", "R", "R"},
@@ -24,47 +39,43 @@ func TestSingleBasic(t *testing.T) {
 
 // TestMultiOneOne tests 1-1 pattern recognition.
 func TestMultiOneOne(t *testing.T) {
-	solver := newTestSolver(t, [][]string{
-		{" ", " ", " ", " ", " "},
-		{"M", " ", " ", "M", " "},
-		{" ", " ", " ", " ", " "},
-		{"R", " ", " ", " ", " "},
+	f := newTestField(t, [][]string{
+		{" ", " ", " "},
+		{" ", "M", " "},
+		{"R", "R", "R"},
 	})
-	solver.solve()
-	solver.assert([][]string{
-		{"R", "R", "R", "R", "R"},
-		{" ", " ", "R", " ", " "},
-		{"R", "R", "R", "R", "R"},
-		{"R", "R", "R", "R", "R"},
+	solve(t, f)
+	assert(t, f, [][]string{
+		{"R", "R", "R"},
+		{"R", "F", "R"},
+		{"R", "R", "R"},
 	})
 }
 
 // TestMultiOneTwo tests 1-2 pattern recognition.
 func TestMultiOneTwo(t *testing.T) {
-	solver := newTestSolver(t, [][]string{
+	f := newTestField(t, [][]string{
 		{" ", " ", " "},
 		{"M", " ", "M"},
-		{" ", " ", " "},
-		{"R", " ", " "},
+		{"R", "R", "R"},
 	})
-	solver.solve()
-	solver.assert([][]string{
+	solve(t, f)
+	assert(t, f, [][]string{
 		{"R", "R", "R"},
 		{"F", "R", "F"},
-		{"R", "R", "R"},
 		{"R", "R", "R"},
 	})
 }
 
 // TestMultiOneTwoCorner tests 1-2 pattern recognition in a corner.
 func TestMultiOneTwoCorner(t *testing.T) {
-	solver := newTestSolver(t, [][]string{
+	f := newTestField(t, [][]string{
 		{" ", "M", "M", " ", " ", "M"},
 		{" ", " ", " ", " ", " ", "M"},
 		{"R", " ", " ", " ", " ", " "},
 	})
-	solver.solve()
-	solver.assert([][]string{
+	solve(t, f)
+	assert(t, f, [][]string{
 		{"R", "F", "F", "R", "R", "F"},
 		{"R", "R", "R", "R", "R", "F"},
 		{"R", "R", "R", "R", "R", "R"},
@@ -73,15 +84,15 @@ func TestMultiOneTwoCorner(t *testing.T) {
 
 // TestTwoTwoCorner tests 2-2 pattern recognition in a corner.
 func TestTwoTwoCorner(t *testing.T) {
-	solver := newTestSolver(t, [][]string{
+	f := newTestField(t, [][]string{
 		{"M", "M", " ", "M", " "},
 		{" ", " ", " ", " ", "M"},
 		{" ", " ", " ", " ", " "},
 		{" ", " ", " ", " ", "M"},
 		{"R", " ", " ", " ", "M"},
 	})
-	solver.solve()
-	solver.assert([][]string{
+	solve(t, f)
+	assert(t, f, [][]string{
 		{"F", "F", "R", "F", "R"},
 		{"R", "R", "R", "R", "F"},
 		{"R", "R", "R", "R", "R"},
@@ -90,177 +101,212 @@ func TestTwoTwoCorner(t *testing.T) {
 	})
 }
 
-// TestMultiFractional tests if matrices containing fractions are correctly handled.
-func TestMultiFractional(t *testing.T) {
-	solver := newTestSolver(t, [][]string{
+// TestDecoupled tests if layouts with decoupled matrices are correctly handled.
+func TestDecoupled(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{"R", "R", " ", " ", " "},
+		{" ", "M", " ", " ", " "},
+		{" ", " ", " ", " ", " "},
+		{" ", " ", " ", "M", " "},
+		{" ", " ", " ", "R", "R"},
+	})
+	solve(t, f)
+	assert(t, f, [][]string{
+		{"R", "R", "R", "R", "R"},
+		{"R", "F", "R", "R", "R"},
+		{"R", "R", "R", "R", "R"},
+		{"R", "R", "R", "F", "R"},
+		{"R", "R", "R", "R", "R"},
+	})
+}
+
+// TestProbabilities1 tests the probabilities calculated for layout 1.
+func TestProbabilities1(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{" ", " ", "M", " ", "M"},
+		{"F", "F", " ", " ", " "},
+		{" ", " ", "R", " ", " "},
+		{" ", " ", "M", " ", " "},
+		{"R", " ", " ", " ", "R"},
+	})
+	solver := NewSolver(f, true)
+	f.Print()
+	want := make(map[int]float64)
+	want[2] = 2.0 / 4.0
+	want[3] = 2.0 / 4.0
+	want[4] = 2.0 / 4.0
+	want[7] = 2.0 / 4.0
+	want[17] = 2.0 / 4.0
+	want[22] = 2.0 / 4.0
+	assertProbabilities(t, f, want, solver.probabilityPerSpace(matrix.NewMatrix(f)))
+}
+
+// TestProbabilities2 tests the probabilities calculated for layout 1.
+func TestProbabilities2(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{" ", "M", "R", " ", "M"},
+		{" ", " ", " ", "R", "M"},
+		{" ", " ", " ", "F", "F"},
+		{" ", " ", " ", " ", " "},
 		{"R", " ", " ", " ", " "},
-		{" ", " ", " ", " ", " "},
-		{"F", "F", "F", "R", "F"},
-		{"M", " ", " ", "M", " "},
-		{"R", " ", "R", " ", "R"},
 	})
-	solver.solve()
-	solver.assert([][]string{
-		{"R", "R", "R", "R", "R"},
-		{"R", "R", "R", "R", "R"},
-		{"F", "F", "F", "R", "F"},
+	solver := NewSolver(f, true)
+	f.Print()
+	want := make(map[int]float64)
+	want[0] = 1.0 / 3.0
+	want[1] = 2.0 / 3.0
+	want[3] = 1.0 / 3.0
+	want[4] = 1.0 / 3.0
+	want[9] = 1.0 / 3.0
+	assertProbabilities(t, f, want, solver.probabilityPerSpace(matrix.NewMatrix(f)))
+}
+
+// TestProbabilities3 tests the probabilities calculated for layout 2.
+func TestProbabilities3(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{"M", "M", " ", " ", " "},
+		{"M", " ", " ", " ", " "},
+		{" ", " ", "R", "M", " "},
 		{" ", " ", " ", " ", " "},
-		{"R", " ", "R", " ", "R"},
+		{" ", " ", "M", " ", "R"},
 	})
+	solver := NewSolver(f, true)
+	f.Print()
+	want := make(map[int]float64)
+	want[6] = 6.0 / 7.0
+	want[7] = 6.0 / 7.0
+	want[8] = 6.0 / 7.0
+	want[11] = 6.0 / 7.0
+	want[13] = 6.0 / 7.0
+	want[14] = 1.0 / 7.0
+	want[16] = 6.0 / 7.0
+	want[17] = 6.0 / 7.0
+	want[22] = 1.0 / 7.0
+	assertProbabilities(t, f, want, solver.probabilityPerSpace(matrix.NewMatrix(f)))
 }
 
-func TestRandomWin(t *testing.T) {
-	for {
-		if _, _, err := NewSolver(NewField(5, 5, 5)).WithFieldPrinter(printField).WithMatrixPrinter(printMatrix).Solve(); err == nil {
-			break
-		}
-	}
+// TestProbabilities4 tests the probabilities calculated for layout 4.
+func TestProbabilities4(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{"R", " ", " ", " ", "R"},
+		{"R", "M", " ", " ", " "},
+		{"R", "R", " ", " ", " "},
+		{" ", "M", "R", " ", "M"},
+		{"R", "M", "R", "F", "R"},
+	})
+	solver := NewSolver(f, true)
+	f.Print()
+	want := make(map[int]float64)
+	want[1] = 2.0 / 3.0
+	want[6] = 1.0 / 3.0
+	want[15] = 1.0 / 3.0
+	want[16] = 1.0 / 3.0
+	want[18] = 1.0 / 3.0
+	want[19] = 2.0 / 3.0
+	want[21] = 1.0 / 3.0
+	assertProbabilities(t, f, want, solver.probabilityPerSpace(matrix.NewMatrix(f)))
 }
 
-func TestRandomLoss(t *testing.T) {
-	for {
-		if _, _, err := NewSolver(NewField(5, 5, 5)).WithFieldPrinter(printField).WithMatrixPrinter(printMatrix).Solve(); err != nil {
-			break
-		}
-	}
+// TestProbabilitiesSplit tests the probabilities calculated for
+func TestProbabilitiesSplit(t *testing.T) {
+	f := newTestField(t, [][]string{
+		{"R", " ", " ", " ", " "},
+		{" ", "M", " ", " ", " "},
+		{" ", " ", " ", " ", " "},
+		{" ", " ", " ", "M", " "},
+		{" ", " ", " ", " ", "R"},
+	})
+	solver := NewSolver(f, true)
+	f.Print()
+	want := make(map[int]float64)
+	want[1] = 2.0 / 3.0
+	want[5] = 2.0 / 3.0
+	want[6] = 2.0 / 3.0
+	want[18] = 2.0 / 3.0
+	want[19] = 2.0 / 3.0
+	want[23] = 2.0 / 3.0
+	assertProbabilities(t, f, want, solver.probabilityPerSpace(matrix.NewMatrix(f)))
 }
 
-// TestSolver solves and asserts on given field layouts.
-type TestSolver struct {
-	field *Field
-	*testing.T
-}
-
-// newTestSolver creates a new test solver with the given layout.
-func newTestSolver(t *testing.T, layout [][]string) *TestSolver {
+// newTestField creates a new field with the given layout.
+func newTestField(t *testing.T, layout [][]string) *field.Field {
 	width := len(layout[0])
 	height := len(layout)
-	field := NewField(width, height, 0)
+	f := field.NewField(width, height, 0)
 	for rowIndex, row := range layout {
 		for colIndex, char := range row {
 			if char == "M" || char == "F" {
-				field.AddMine(field.Spaces()[rowIndex*width+colIndex])
+				f.AddMine(f.Spaces()[rowIndex*f.Width()+colIndex])
 			}
 		}
 	}
 	for rowIndex, row := range layout {
 		for colIndex, char := range row {
-			space := field.Spaces()[rowIndex*width+colIndex]
+			space := f.Spaces()[rowIndex*f.Width()+colIndex]
 			switch char {
 			case "F":
-				if err := field.Flag(space, true); err != nil {
-					t.Fatal(err)
-				}
+				f.Flag(space)
 			case "R":
-				if err := field.Reveal(space, true); err != nil {
+				if err := f.Reveal(space); err != nil {
 					t.Fatal(err)
 				}
 			}
 		}
 	}
-	return &TestSolver{field, t}
+	return f
 }
 
-// solve solves the given layout.
-func (t *TestSolver) solve() {
-	solver := NewSolver(t.field).WithGuessing(false).WithFieldPrinter(printField).WithMatrixPrinter(printMatrix)
-	printField(t.field, nil, nil)
-	if _, _, err := solver.Solve(); err != nil {
-		t.Fatal(err)
+// solve solves the given field.
+func solve(t *testing.T, f *field.Field) *Solver {
+	solver := NewSolver(f, true)
+	f.Print()
+	if result := solver.Solve(); !result.Won {
+		t.Fatal("game lost")
 	}
+	return solver
 }
 
-// assert ensures that the solved field matches the given layout.
-func (t *TestSolver) assert(layout [][]string) {
-	assertions := make(map[string]string)
+// assert ensures that the given field matches the given layout.
+func assert(t *testing.T, f *field.Field, layout [][]string) {
+	assertions := make(map[int]string)
 	height := len(layout)
 	width := len(layout[0])
-	if width != t.field.Width() {
-		t.Fatalf("solution width: want %v, found %v", t.field.Width(), width)
+	if width != f.Width() {
+		t.Fatalf("solution width: want %d, found %d", f.Width(), width)
 	}
-	if height != t.field.Height() {
-		t.Fatalf("solution height: want %v, found %v", t.field.Height(), height)
+	if height != f.Height() {
+		t.Fatalf("solution height: want %d, found %d", f.Height(), height)
 	}
 	for rowIndex, row := range layout {
 		for colIndex, char := range row {
-			assertions[IndexToId(t.field.Width(), rowIndex*t.field.Width()+colIndex)] = char
+			assertions[rowIndex*f.Width()+colIndex] = char
 		}
-	}
-	results := make(map[string]*Space)
-	for _, space := range t.field.Spaces() {
-		results[space.Id()] = space
 	}
 	for spaceId, char := range assertions {
-		space := results[spaceId]
-		var state State
+		space := f.Spaces()[spaceId]
+		var state field.State
 		switch char {
 		case " ":
-			state = Unknown
+			state = field.Unknown
 		case "F":
-			state = Flagged
+			state = field.Flagged
 		case "R":
-			state = Revealed
+			state = field.Revealed
 		default:
-			t.Fatalf("space %v: unknown assertion %v", spaceId, state)
+			t.Fatalf("space %d: unknown assertion %s", spaceId, state)
 		}
 		if space.State() != state {
-			t.Fatalf("space %v state: want %v, found %v", spaceId, state, space.State())
+			t.Fatalf("space %d state: want %s, found %s", spaceId, state, space.State())
 		}
 		delete(assertions, spaceId)
 	}
 }
 
-// printField provides a test-friendly field printer.
-func printField(field *Field, changedSpace *Space, err error) {
-	for spaceIndex, space := range field.Spaces() {
-		fmt.Print("|")
-		spaceContent := "   "
-		switch space.State() {
-		case Revealed:
-			if space.MineNeighborCount() > 0 {
-				spaceContent = fmt.Sprintf(" %d ", space.MineNeighborCount())
-			}
-			if space.HasMine() {
-				spaceContent = " * "
-			}
-		case Flagged:
-			spaceContent = " * "
-		case Unknown:
-			spaceContent = " - "
-		}
-		fmt.Print(spaceContent)
-		if spaceIndex%field.Width() == field.Width()-1 {
-			fmt.Println("|")
+func assertProbabilities(t *testing.T, f *field.Field, want map[int]float64, found map[*field.Space]float64) {
+	for k, v := range want {
+		value := found[f.Spaces()[k]]
+		if value != v {
+			t.Fatalf("probability for %d: want %.2f, found %.2f", k, v, value)
 		}
 	}
-	if changedSpace != nil {
-		if err == nil {
-			fmt.Printf("%v %v: success\n", changedSpace.Id(), changedSpace.State())
-		} else {
-			fmt.Printf("%v %v: %v\n", changedSpace.Id(), changedSpace.State(), err)
-		}
-	}
-	fmt.Println()
-}
-
-// printMatrix provides a test-friendly matrix printer.
-func printMatrix(matrix Matrix) {
-	for rowIndex, row := range matrix {
-		if rowIndex == 0 {
-			fmt.Print(" ")
-			for _, cell := range row[:len(row)-1] {
-				fmt.Printf("%4s ", cell.space.Id())
-			}
-			fmt.Println()
-		}
-		for cellIndex, cell := range row {
-			if cellIndex%len(row) == len(row)-1 {
-				fmt.Printf(" | %4s %s", fmt.Sprintf("%1.1f", cell.value), cell.space.Id())
-			} else {
-				fmt.Printf(" %4s", fmt.Sprintf("%1.1f", cell.value))
-			}
-		}
-		fmt.Println()
-	}
-	fmt.Println()
 }

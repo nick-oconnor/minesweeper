@@ -1,24 +1,26 @@
 package field
 
 import (
+	"fmt"
 	"math/rand"
 )
 
-// Field represents a 2D minesweeper field.
 type Field struct {
 	width, height, flaggedCount, mineCount int
-	spaces, revealedSpaces, unknownSpaces  []*Space
+	spaces, revealedSpaces                 []*Space
+	unknownSpaces                          map[*Space]bool
 	firstMove                              bool
 }
 
 // NewField creates a new field with the given parameters.
 func NewField(width int, height int, mineCount int) *Field {
-	f := &Field{width, height, 0, 0, []*Space{}, []*Space{}, []*Space{}, true}
+	spaceCount := width * height
+	f := &Field{width, height, 0, 0, make([]*Space, 0, spaceCount), make([]*Space, 0, spaceCount), make(map[*Space]bool, spaceCount), true}
 	// Set up the field.
 	for spaceIndex := 0; spaceIndex < f.width*f.height; spaceIndex++ {
-		space := newSpace(IndexToId(f.width, spaceIndex))
+		space := newSpace(spaceIndex)
 		f.spaces = append(f.spaces, space)
-		f.unknownSpaces = append(f.unknownSpaces, space)
+		f.unknownSpaces[space] = true
 	}
 	// Set up neighbor references.
 	for spaceIndex, space := range f.spaces {
@@ -29,7 +31,7 @@ func NewField(width int, height int, mineCount int) *Field {
 				neighbor := f.spaces[neighborRowIndex*f.width+neighborColIndex]
 				if neighbor != space {
 					space.neighbors = append(space.neighbors, neighbor)
-					space.unknownNeighbors = append(space.unknownNeighbors, neighbor)
+					space.unknownNeighbors[neighbor] = true
 				}
 			}
 		}
@@ -51,24 +53,28 @@ func (f *Field) Height() int {
 	return f.height
 }
 
+// MineCount returns the number of mines in the field.
+func (f *Field) MineCount() int {
+	return f.mineCount
+}
+
+// FlaggedCount returns the number of spaces flagged in the field.
+func (f *Field) FlaggedCount() int {
+	return f.flaggedCount
+}
+
 // Spaces returns all spaces in the field.
 func (f *Field) Spaces() []*Space {
 	return f.spaces
 }
 
-// RevealedSpaces returns the revealed spaces in the field.
-func (f *Field) RevealedSpaces() []*Space {
-	return f.revealedSpaces
-}
-
 // UnknownSpaces returns the unknown spaces in the field.
-func (f *Field) UnknownSpaces() []*Space {
+func (f *Field) UnknownSpaces() map[*Space]bool {
 	return f.unknownSpaces
 }
 
-// Reveal reveals the given space in the field. This panics if the space contains
-// a mine and panicOnError is true.
-func (f *Field) Reveal(space *Space, panicOnError bool) error {
+// Reveal reveals the given space in the field.
+func (f *Field) Reveal(space *Space) error {
 	if f.firstMove {
 		f.firstMove = false
 		if space.hasMine {
@@ -77,56 +83,101 @@ func (f *Field) Reveal(space *Space, panicOnError bool) error {
 			f.addRandomMine(space)
 		}
 	}
-	if err := space.reveal(panicOnError); err != nil {
+	if err := space.reveal(); err != nil {
 		return err
 	}
-	f.unknownSpaces = remove(f.unknownSpaces, space)
+	delete(f.unknownSpaces, space)
 	f.revealedSpaces = append(f.revealedSpaces, space)
-	return f.recursiveReveal(space)
-}
-
-// recursiveReveal recursively reveals neighbors which are not touching mines.
-func (f *Field) recursiveReveal(space *Space) error {
-	if space.MineNeighborCount() == 0 {
-		unknownNeighbors := append([]*Space{}, space.unknownNeighbors...)
-		for _, unknownNeighbor := range unknownNeighbors {
-			if err := unknownNeighbor.reveal(false); err != nil {
-				return err
-			}
-			f.unknownSpaces = remove(f.unknownSpaces, unknownNeighbor)
-			f.revealedSpaces = append(f.revealedSpaces, unknownNeighbor)
-		}
-		for _, unknownNeighbor := range unknownNeighbors {
-			if err := f.recursiveReveal(unknownNeighbor); err != nil {
-				return err
-			}
-		}
-	}
+	f.recursiveReveal(space)
 	return nil
 }
 
-// Flag flags the given space in the field. This panics if the space does not
-// contain a mine and panicOnError is true.
-func (f *Field) Flag(space *Space, panicOnError bool) error {
-	if err := space.flag(panicOnError); err != nil {
-		return err
-	}
-	f.unknownSpaces = remove(f.unknownSpaces, space)
+// Flag flags the given space in the field.
+func (f *Field) Flag(space *Space) {
+	space.flag()
+	delete(f.unknownSpaces, space)
 	f.flaggedCount++
-	return nil
 }
 
 // AddMine adds a mine to the given space.
 func (f *Field) AddMine(space *Space) {
-	space.AddMine()
+	space.addMine()
 	f.mineCount++
 }
 
+// RevealedEdgeSpaces retrieves the revealed edge spaces in the field.
+func (f *Field) RevealedEdgeSpaces() []*Space {
+	var spaces []*Space
+	for _, revealedSpace := range f.revealedSpaces {
+		if len(revealedSpace.unknownNeighbors) > 0 && revealedSpace.mineNeighborCount > 0 {
+			spaces = append(spaces, revealedSpace)
+		}
+	}
+	return spaces
+}
+
+// UnknownEdgeSpaces retrieves the unknown edge spaces for the field.
+func (f *Field) UnknownEdgeSpaces() []*Space {
+	var spaces []*Space
+	for unknownSpace := range f.unknownSpaces {
+		if unknownSpace.revealedNeighborCount > 0 {
+			spaces = append(spaces, unknownSpace)
+		}
+	}
+	return spaces
+}
+
+// Print prints the field to stdout.
+func (f *Field) Print() {
+	for spaceIndex, space := range f.spaces {
+		fmt.Print("|")
+		spaceContent := "   "
+		switch space.state {
+		case Revealed:
+			if space.mineNeighborCount > 0 {
+				spaceContent = fmt.Sprintf(" %d ", space.mineNeighborCount)
+			}
+			if space.hasMine {
+				spaceContent = " * "
+			}
+		case Flagged:
+			spaceContent = " * "
+		case Unknown:
+			spaceContent = " - "
+		}
+		fmt.Print(spaceContent)
+		if spaceIndex%f.width == f.width-1 {
+			fmt.Println("|")
+		}
+	}
+	fmt.Println()
+}
+
+// recursiveReveal recursively reveals neighbors which are not touching mines.
+func (f *Field) recursiveReveal(space *Space) {
+	if space.mineNeighborCount == 0 {
+		unknownNeighbors := make(map[*Space]bool)
+		for unknownNeighbor := range space.unknownNeighbors {
+			unknownNeighbors[unknownNeighbor] = true
+		}
+		for unknownNeighbor := range unknownNeighbors {
+			if err := unknownNeighbor.reveal(); err != nil {
+				panic(err)
+			}
+			delete(f.unknownSpaces, unknownNeighbor)
+			f.revealedSpaces = append(f.revealedSpaces, unknownNeighbor)
+		}
+		for unknownNeighbor := range unknownNeighbors {
+			f.recursiveReveal(unknownNeighbor)
+		}
+	}
+}
+
 // addRandomMine adds a mine to a random space which is not the given space.
-func (f *Field) addRandomMine(excludeSpace *Space) {
+func (f *Field) addRandomMine(exclude *Space) {
 	for {
 		space := f.spaces[rand.Intn(f.width*f.height)]
-		if space == excludeSpace || space.hasMine {
+		if space == exclude || space.hasMine {
 			continue
 		}
 		f.AddMine(space)

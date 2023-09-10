@@ -3,64 +3,69 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"runtime"
-	"time"
+	"runtime/pprof"
 
-	. "gitlab.ocnr.org/apps/minesweeper/field"
-	. "gitlab.ocnr.org/apps/minesweeper/solver"
+	"gitlab.ocnr.org/apps/minesweeper/field"
+	"gitlab.ocnr.org/apps/minesweeper/solver"
 )
 
-// GameResult is used for keeping game results.
-type GameResult struct {
-	won                   bool
-	moveCount, guessCount int
-}
-
 // simulate simulates the number of requested games in parallel, one game per core.
-func simulate(width int, height int, mineCount int, gameCount int) {
+func simulate(width int, height int, mineCount int, gameCount int, progress bool) {
 	gameQueue := make(chan interface{}, gameCount)
-	resultQueue := make(chan *GameResult)
+	resultQueue := make(chan *solver.GameResult)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go func() {
 			for range gameQueue {
-				moveCount, guessCount, err := NewSolver(NewField(width, height, mineCount)).Solve()
-				resultQueue <- &GameResult{err == nil, moveCount, guessCount}
+				resultQueue <- solver.NewSolver(field.NewField(width, height, mineCount), false).Solve()
 			}
 		}()
 	}
 	wonCount := 0
 	moveCount := 0
 	guessCount := 0
-	startCycles := cpuCycles()
 	for i := 0; i < gameCount; i++ {
 		gameQueue <- nil
 	}
 	close(gameQueue)
 	for gamesSimulated := 1; gamesSimulated <= gameCount; gamesSimulated++ {
 		result := <-resultQueue
-		if result.won {
+		if result.Won {
 			wonCount++
-			moveCount += result.moveCount
-			guessCount += result.guessCount
+			moveCount += result.MoveCount
+			guessCount += result.GuessCount
 		}
-		fmt.Printf("\rGames Simulated: %d, Won: %.1f%%, Moves/Win: %.1f, Guesses/Win: %.2f, CPU Cycles/Game: %.2e", gamesSimulated, float64(wonCount)/float64(gamesSimulated)*100, float64(moveCount)/float64(wonCount), float64(guessCount)/float64(wonCount), float64(cpuCycles()-startCycles)/float64(gamesSimulated))
+		if progress {
+			fmt.Printf("Games Simulated: %d, Win Ratio: %.1f%%, Moves/Win: %.1f, Guesses/Win: %.2f\r", gamesSimulated, float64(wonCount)/float64(gamesSimulated)*100, float64(moveCount)/float64(wonCount), float64(guessCount)/float64(wonCount))
+		}
 	}
-	fmt.Println()
+	fmt.Printf("Games Simulated: %d, Win Ratio: %.1f%%, Moves/Win: %.1f, Guesses/Win: %.2f\n", gameCount, float64(wonCount)/float64(gameCount)*100, float64(moveCount)/float64(wonCount), float64(guessCount)/float64(wonCount))
 }
 
 // main is the CLI entrypoint.
 func main() {
-	defaultMoveDuration, _ := time.ParseDuration("0.5s")
 	width := flag.Int("width", 30, "width of the field")
 	height := flag.Int("height", 16, "height of the field")
 	mineCount := flag.Int("mines", 99, "number of mines")
 	gameCount := flag.Int("games", 1000, "number of games")
-	duration := flag.Duration("duration", defaultMoveDuration, "visualize move duration")
+	progress := flag.Bool("progress", true, "show progress")
 	visualize := flag.Bool("visualize", false, "visualize gameplay")
+	cpuprofile := flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			panic(err)
+		}
+		if err = pprof.StartCPUProfile(f); err != nil {
+			panic(err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 	if *visualize {
-		_, _, _ = NewSolver(NewField(*width, *height, *mineCount)).WithFieldPrinter(NewPrinter(*duration).PrintField).Solve()
+		_ = solver.NewSolver(field.NewField(*width, *height, *mineCount), *visualize).Solve()
 		return
 	}
-	simulate(*width, *height, *mineCount, *gameCount)
+	simulate(*width, *height, *mineCount, *gameCount, *progress)
 }

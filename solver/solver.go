@@ -2,147 +2,178 @@ package solver
 
 import (
 	"fmt"
-	. "gitlab.ocnr.org/apps/minesweeper/field"
+
+	"gitlab.ocnr.org/apps/minesweeper/field"
+	"gitlab.ocnr.org/apps/minesweeper/matrix"
 )
 
-// MoveInfo holds queued move info.
-type MoveInfo struct {
-	operation State
-	isGuess   bool
+type MoveQueue map[*field.Space]*MoveInfo
+
+type GameResult struct {
+	Won                   bool
+	MoveCount, GuessCount int
 }
 
-// MoveQueue holds queued moves.
-type MoveQueue map[*Space]*MoveInfo
-
-// Solver is used for solving fields.
 type Solver struct {
-	field          *Field
-	enableGuessing bool
-	fieldPrinter   func(*Field, *Space, error)
-	matrixPrinter  func(Matrix)
-	queuedMoves    MoveQueue
+	field     *field.Field
+	visualize bool
+	moveQueue MoveQueue
 }
+
+var guessTypes = map[MoveType]bool{EnumerationGuess: true, UnconstrainedGuess: true}
 
 // NewSolver creates a new solver.
-func NewSolver(field *Field) *Solver {
-	return &Solver{field, true, nil, nil, make(MoveQueue)}
-}
-
-// WithGuessing enables or disables guessing for the solver.
-func (s *Solver) WithGuessing(enableGuessing bool) *Solver {
-	s.enableGuessing = enableGuessing
-	return s
-}
-
-// WithFieldPrinter sets the field printer to use when solving.
-func (s *Solver) WithFieldPrinter(fieldPrinter func(*Field, *Space, error)) *Solver {
-	s.fieldPrinter = fieldPrinter
-	return s
-}
-
-// WithMatrixPrinter sets the matrix printer to use when solving.
-func (s *Solver) WithMatrixPrinter(matrixPrinter func(Matrix)) *Solver {
-	s.matrixPrinter = matrixPrinter
-	return s
+func NewSolver(f *field.Field, visualize bool) *Solver {
+	return &Solver{f, visualize, make(MoveQueue)}
 }
 
 // Solve solves the field.
-func (s *Solver) Solve() (int, int, error) {
-	moveCount := 0
-	guessCount := 0
+func (s *Solver) Solve() *GameResult {
+	gameResult := &GameResult{}
 	for {
-		var space *Space
-		var isGuess bool
+		var space *field.Space
+		var moveType MoveType
 		var err error
 		for {
-			space, isGuess, err = s.nextMove()
+			space, moveType, err = s.nextMove()
 			if err != nil || space != nil {
-				moveCount++
-				if isGuess {
-					guessCount++
+				gameResult.MoveCount++
+				if guessTypes[moveType] {
+					gameResult.GuessCount++
 				}
 				break
 			}
-			s.generateSingleSpaceMoves()
-			if len(s.queuedMoves) > 0 {
+			baseMatrix := matrix.NewMatrix(s.field)
+			s.addConstrainedMoves(baseMatrix)
+			if len(s.moveQueue) > 0 {
 				continue
 			}
-			s.generateMultiSpaceMoves()
-			if len(s.queuedMoves) > 0 {
+			if s.visualize {
+				fmt.Printf("no moves found by resolving constraints\n\n")
+			}
+			s.addEnumeratedMoves(baseMatrix)
+			if len(s.moveQueue) > 0 {
 				continue
 			}
-			if s.enableGuessing {
-				s.generateGuess()
+			if s.visualize {
+				fmt.Printf("no moves found by enumeration\n\n")
 			}
-			if len(s.queuedMoves) == 0 {
-				break
+			s.addUnconstrainedMove(baseMatrix)
+			if len(s.moveQueue) == 0 {
+				panic("no moves added")
 			}
-		}
-		if s.fieldPrinter != nil {
-			s.fieldPrinter(s.field, space, err)
 		}
 		if err != nil || space == nil || len(s.field.UnknownSpaces()) == 0 {
-			return moveCount, guessCount, err
+			gameResult.Won = len(s.field.UnknownSpaces()) == 0 && err == nil
+			return gameResult
 		}
 	}
 }
 
 // nextMove executes the next move from the move queue.
-func (s *Solver) nextMove() (*Space, bool, error) {
-	for space, queuedMove := range s.queuedMoves {
-		delete(s.queuedMoves, space)
-		if space.State() == queuedMove.operation {
+func (s *Solver) nextMove() (*field.Space, MoveType, error) {
+	for space, moveInfo := range s.moveQueue {
+		delete(s.moveQueue, space)
+		if space.State() == moveInfo.operation {
 			continue
 		}
 		var err error
-		switch queuedMove.operation {
-		case Flagged:
-			err = s.field.Flag(space, !queuedMove.isGuess)
-		case Revealed:
-			err = s.field.Reveal(space, !queuedMove.isGuess)
+		switch moveInfo.operation {
+		case field.Flagged:
+			s.field.Flag(space)
+		case field.Revealed:
+			err = s.field.Reveal(space)
+			if err != nil && !guessTypes[moveInfo.moveType] {
+				panic(err)
+			}
 		default:
-			panic(fmt.Sprintf("invalid move %v for space %v", queuedMove.operation, space.Id()))
+			panic(fmt.Sprintf("invalid move %s for space %d", moveInfo.operation, space.Index()))
 		}
-		return space, queuedMove.isGuess, err
-	}
-	return nil, false, nil
-}
-
-// generateSingleSpaceMoves adds single-space moves to the move queue.
-func (s *Solver) generateSingleSpaceMoves() {
-	for _, revealedEdgeSpace := range s.revealedEdgeSpaces() {
-		probability := float64(revealedEdgeSpace.MineNeighborCount()-revealedEdgeSpace.FlaggedNeighborCount()) / float64(len(revealedEdgeSpace.UnknownNeighbors()))
-		for _, unknownEdgeSpace := range revealedEdgeSpace.UnknownNeighbors() {
-			if probability == 1 {
-				s.queuedMoves[unknownEdgeSpace] = &MoveInfo{Flagged, false}
-			}
-			if probability == 0 {
-				s.queuedMoves[unknownEdgeSpace] = &MoveInfo{Revealed, false}
+		if s.visualize {
+			fmt.Printf("space %d %s by %s\n\n", space.Index(), moveInfo.operation, moveInfo.moveType)
+			s.field.Print()
+			if err != nil {
+				fmt.Println(err)
 			}
 		}
+		return space, moveInfo.moveType, err
+	}
+	return nil, 0, nil
+}
+
+// addConstrainedMoves adds fully-constrained moves to the move queue.
+func (s *Solver) addConstrainedMoves(baseMatrix matrix.Matrix) {
+	if len(baseMatrix) == 0 {
+		return
+	}
+	resolvedMatrix, err := baseMatrix.Resolve()
+	if err != nil {
+		panic(err)
+	}
+	if s.visualize {
+		fmt.Printf("resolving constraints\n\n")
+		resolvedMatrix.Print()
+	}
+	if len(resolvedMatrix) == 0 {
+		return
+	}
+	for _, cell := range resolvedMatrix[0].Lhs() {
+		switch cell.State() {
+		case field.Flagged:
+			s.moveQueue[cell.Space()] = &MoveInfo{field.Flagged, Constrained}
+		case field.Revealed:
+			s.moveQueue[cell.Space()] = &MoveInfo{field.Revealed, Constrained}
+		}
 	}
 }
 
-// generateMultiSpaceMoves adds multi-space moves to the move queue.
-func (s *Solver) generateMultiSpaceMoves() {
-	matrix := newMatrix(s.revealedEdgeSpaces(), s.unknownEdgeSpaces())
-	if s.matrixPrinter != nil {
-		s.matrixPrinter(matrix)
+// addEnumeratedMoves calculates all possible solutions to the currently
+// constrained spaces. It flags or reveals spaces which are mines or not mines in
+// every possible solution. If no spaces are mines or not mines in every
+// solution, it calculates the space with the highest probability of not being a
+// mine. If that probability is less than that of unconstrained spaces, it
+// reveals it. This algorithm is based on
+// https://www.cs.toronto.edu/~cvs/minesweeper/minesweeper.pdf.
+func (s *Solver) addEnumeratedMoves(baseMatrix matrix.Matrix) {
+	var bestSpace *field.Space
+	bestProbability := 0.0
+	for space, probability := range s.probabilityPerSpace(baseMatrix) {
+		switch probability {
+		case 0:
+			s.moveQueue[space] = &MoveInfo{field.Flagged, Enumeration}
+		case 1:
+			s.moveQueue[space] = &MoveInfo{field.Revealed, Enumeration}
+		}
+		if probability > bestProbability {
+			bestSpace = space
+			bestProbability = probability
+		}
 	}
-	matrix.reduce()
-	if s.matrixPrinter != nil {
-		s.matrixPrinter(matrix)
+	if len(s.moveQueue) > 0 {
+		return
 	}
-	matrix.addMoves(s.queuedMoves)
+	if bestSpace != nil {
+		minesRemaining := s.field.MineCount() - s.field.FlaggedCount()
+		fieldProbability := 1 - float64(minesRemaining)/float64(len(s.field.UnknownSpaces()))
+		if s.visualize {
+			fmt.Printf("unconstrained mine-free probability\n\n %.2f\n\n", fieldProbability)
+		}
+		if bestProbability > fieldProbability {
+			s.moveQueue[bestSpace] = &MoveInfo{field.Revealed, EnumerationGuess}
+		}
+	}
 }
 
-// generateGuess adds a guess to the move queue. There's room for improvement
-// here. Per
-// https://dash.harvard.edu/bitstream/handle/1/14398552/BECERRA-SENIORTHESIS-2015.pdf
-// it should be possible to obtain a 32% win rate.
-func (s *Solver) generateGuess() {
-	var cornerSpace, edgeSpace, centerSpace *Space
-	for _, unknownSpace := range s.field.UnknownSpaces() {
+// addUnconstrainedMove reveals an unconstrained corner, edge, then center space
+// in preferential order.
+func (s *Solver) addUnconstrainedMove(baseMatrix matrix.Matrix) {
+	var cornerSpace, edgeSpace, centerSpace *field.Space
+	constrainedSpaces := baseMatrix.ConstrainedSpaces()
+	unconstrainedSpacesExist := len(s.field.UnknownSpaces()) > len(constrainedSpaces)
+	for unknownSpace := range s.field.UnknownSpaces() {
+		if unconstrainedSpacesExist && constrainedSpaces[unknownSpace] {
+			continue
+		}
 		if len(unknownSpace.Neighbors()) == 3 {
 			cornerSpace = unknownSpace
 		}
@@ -152,36 +183,67 @@ func (s *Solver) generateGuess() {
 		centerSpace = unknownSpace
 	}
 	if cornerSpace != nil {
-		s.queuedMoves[cornerSpace] = &MoveInfo{Revealed, true}
+		s.moveQueue[cornerSpace] = &MoveInfo{field.Revealed, UnconstrainedGuess}
 		return
 	}
 	if edgeSpace != nil {
-		s.queuedMoves[edgeSpace] = &MoveInfo{Revealed, true}
+		s.moveQueue[edgeSpace] = &MoveInfo{field.Revealed, UnconstrainedGuess}
 		return
 	}
 	if centerSpace != nil {
-		s.queuedMoves[centerSpace] = &MoveInfo{Revealed, true}
+		s.moveQueue[centerSpace] = &MoveInfo{field.Revealed, UnconstrainedGuess}
 	}
 }
 
-// revealedEdgeSpaces retrieves the revealed edge spaces for the field.
-func (s *Solver) revealedEdgeSpaces() []*Space {
-	var spaces []*Space
-	for _, revealedSpace := range s.field.RevealedSpaces() {
-		if len(revealedSpace.UnknownNeighbors()) > 0 {
-			spaces = append(spaces, revealedSpace)
+// probabilityPerSpace returns the probability of each edge space not containing
+// a mine.
+func (s *Solver) probabilityPerSpace(baseMatrix matrix.Matrix) map[*field.Space]float64 {
+	var solutionsByPart [][]*matrix.Solution
+	for partIndex, part := range baseMatrix.SplitCoupled() {
+		if s.visualize {
+			fmt.Printf("possible solutions for constraint group %d\n\n", partIndex)
+		}
+		solutionsByPart = append(solutionsByPart, part.Solve(s.visualize))
+	}
+	minFlaggedSum := 0
+	minFlaggedByPart := make(map[int]int)
+	for partIndex, solutions := range solutionsByPart {
+		minFlagged := 0
+		for _, solution := range solutions {
+			if len(solution.Flagged) < minFlagged {
+				minFlagged = len(solution.Flagged)
+			}
+		}
+		minFlaggedSum += minFlagged
+		minFlaggedByPart[partIndex] = minFlagged
+	}
+	probabilities := make(map[*field.Space]float64)
+	minesRemaining := s.field.MineCount() - s.field.FlaggedCount()
+	for partIndex, solutionPart := range solutionsByPart {
+		minFlaggedSumOtherParts := minFlaggedSum - minFlaggedByPart[partIndex]
+		solutionCount := 0
+		revealedSpaceCounts := make(map[*field.Space]int)
+		for _, solution := range solutionPart {
+			if minFlaggedSumOtherParts+len(solution.Flagged) > minesRemaining {
+				continue
+			}
+			for _, space := range solution.Revealed {
+				revealedSpaceCounts[space]++
+			}
+			solutionCount++
+		}
+		if s.visualize {
+			fmt.Printf("constrained mine-free probabilities for constraint group %d\n\n", partIndex)
+		}
+		for space, revealedCount := range revealedSpaceCounts {
+			probabilities[space] = float64(revealedCount) / float64(solutionCount)
+			if s.visualize {
+				fmt.Printf("%4d %.2f\n", space.Index(), probabilities[space])
+			}
+		}
+		if s.visualize {
+			fmt.Println()
 		}
 	}
-	return spaces
-}
-
-// unknownEdgeSpaces retrieves the unknown edge spaces for the field.
-func (s *Solver) unknownEdgeSpaces() []*Space {
-	var spaces []*Space
-	for _, unknownSpace := range s.field.UnknownSpaces() {
-		if unknownSpace.RevealedNeighborCount() > 0 {
-			spaces = append(spaces, unknownSpace)
-		}
-	}
-	return spaces
+	return probabilities
 }
