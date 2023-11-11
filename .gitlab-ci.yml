@@ -21,7 +21,6 @@ update-dockerfile:
       vault kv get -field=id_ed25519 "repo-updater/${CI_PROJECT_PATH}" > "${HOME}/.ssh/id_ed25519"
       vault kv get -field=known_hosts "repo-updater/common" > "${HOME}/.ssh/known_hosts"
       chmod 600 "${HOME}/.ssh/id_ed25519"
-      export VAULT_TOKEN=$(vault write -field=token auth/jwt/login role=registries jwt="${VAULT_ID_TOKEN}")
   script:
     - update-dockerfile-commit
   rules:
