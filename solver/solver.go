@@ -123,6 +123,8 @@ func (s *Solver) addConstrainedMoves(baseMatrix matrix.Matrix) {
 			s.moveQueue[cell.Space()] = &MoveInfo{field.Flagged, Constrained}
 		case field.Revealed:
 			s.moveQueue[cell.Space()] = &MoveInfo{field.Revealed, Constrained}
+		case field.Unknown:
+			// Ignore
 		}
 	}
 }

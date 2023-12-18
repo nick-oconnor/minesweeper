@@ -67,7 +67,7 @@ This algorithm is based on Robert Massaioli's post[^1].
 
 ### Enumeration
 
-The solver enumerates every possible solution to the currently known constraints. If non-overlapping sets of constrains
+The solver enumerates every possible solution to the currently known constraints. If non-overlapping sets of constraints
 exist, it enumerates each set separately. For each solution found, it records the number of flagged spaces and the
 specific spaces which were revealed.
 
@@ -77,9 +77,9 @@ solutions, it calculates the probability of each space being mine-free as the nu
 divided by the number of solutions found.
 
 If any space is revealed or flagged in all possible solutions, the space is revealed or flagged. If no certain moves
-are found, the solver compares the constrained space with the highest probability to the probability of the
-unconstrained spaces. If the constrained space's probability is greater, the solver reveals it. If the highest
-probability is less than that of an unconstrained space, the solves moves on to unconstrained guessing.
+are found, the solver compares the constrained space with the highest probability of being empty to the probability of
+an unconstrained space being empty. If the constrained space's probability is greater, the solver reveals it.
+Otherwise, the solver moves on to unconstrained guessing.
 
 This algorithm is based on Chris Studholme's paper[^2].
 

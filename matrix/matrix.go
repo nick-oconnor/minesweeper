@@ -97,8 +97,7 @@ func (m Matrix) Resolve() (Matrix, error) {
 	return matrix, nil
 }
 
-// Solve populates the given solutions map with all possible solutions for the
-// matrix. The map is indexed by the number of spaces flagged in the solution.
+// Solve returns a list all possible solutions for the matrix.
 func (m Matrix) Solve(visualize bool) []*Solution {
 	space := m.mostConstrainedSpace()
 	if space == nil {
@@ -109,6 +108,8 @@ func (m Matrix) Solve(visualize bool) []*Solution {
 				solution.Flagged = append(solution.Flagged, cell.space)
 			case field.Revealed:
 				solution.Revealed = append(solution.Revealed, cell.space)
+			case field.Unknown:
+				// Ignore
 			}
 		}
 		if visualize {
