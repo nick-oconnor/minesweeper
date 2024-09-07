@@ -15,7 +15,7 @@ COPY *.pgo ./
 
 RUN go build -v -o /minesweeper
 
-FROM alpine@sha256:eddacbc7e24bf8799a4ed3cdcfa50d4b88a323695ad80f317b6629883b2c2a78
+FROM alpine@sha256:33735bd63cf84d7e388d9f6d297d348c523c044410f553bd878c6d7829612735
 
 COPY --from=build /minesweeper /
 
