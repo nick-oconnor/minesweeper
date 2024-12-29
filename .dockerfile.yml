@@ -1,7 +1,6 @@
 arch: amd64
-tag_filter: ^v\d+\.\d+\.\d+$
 containers:
   - repo: golang
-    tag_filter: ^1\.21-alpine$
+    tag_filter: ^1\.23-alpine$
   - repo: alpine
     tag_filter: ^3$
