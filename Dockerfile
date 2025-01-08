@@ -1,4 +1,4 @@
-FROM golang@sha256:fe60376abcd2ed517529818a5ebccc2b4493fa9c19d6f69c45deaddf3b738e72 AS build
+FROM golang@sha256:b4743faf9518405c68649c29f1c9e29f43872a5e882c61e411347e73ef64a0b5 AS build
 
 WORKDIR /src
 
@@ -15,7 +15,7 @@ COPY *.pgo ./
 
 RUN go build -v -o /minesweeper
 
-FROM alpine@sha256:f3a728d5dcf0f45691478201526b30230de3a3e3b26ffe92462d0a98fcb8f4e5
+FROM alpine@sha256:483f502c0e6aff6d80a807f25d3f88afa40439c29fdd2d21a0912e0f42db842a
 
 COPY --from=build /minesweeper /
 
