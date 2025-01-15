@@ -95,26 +95,26 @@ If all spaces are constrained, it reveals a constrained space in the same order 
 
 ## Performance
 
-Benchmarks were performed on 8-cores of an AMD EPYC 7313P CPU.
+Benchmarks were performed on an AMD Ryzen 9 9950X CPU.
 
 For beginner fields:
 
 ```
 $ time ./minesweeper -width 9 -height 9 -mines 10 -games 1000000
-Games Simulated: 1000000, Win Ratio: 90.9%, Moves/Win: 30.4, Guesses/Win: 1.62
-real 1m 6.01s
-user 6m 47.85s
-sys 0m 14.27s
+Games Simulated: 1000000, Win Ratio: 91.0%, Moves/Win: 30.4, Guesses/Win: 1.62
+real	0m 23.35s
+user	7m 14.49s
+sys	0m 30.15s
 ```
 
 For advanced fields:
 
 ```
 $ time ./minesweeper -width 16 -height 16 -mines 40 -games 1000000
-Games Simulated: 1000000, Win Ratio: 75.5%, Moves/Win: 123.4, Guesses/Win: 2.11
-real 6m 42.30s
-user 47m 4.41s
-sys 1m 19.04s
+Games Simulated: 1000000, Win Ratio: 75.4%, Moves/Win: 123.4, Guesses/Win: 2.11
+real	2m 33.82s
+user	54m 5.89s
+sys	3m 5.59s
 ```
 
 For expert fields:
@@ -122,9 +122,9 @@ For expert fields:
 ```
 $ time ./minesweeper -width 30 -height 16 -mines 99 -games 1000000
 Games Simulated: 1000000, Win Ratio: 31.9%, Moves/Win: 309.6, Guesses/Win: 4.24
-real 1h 51m 04s
-user 14h 26m 08s
-sys 4m 12.85s
+real	39m 35.47s
+user	14h 53m 31s
+sys	31m 20.34s
 ```
 
 The above win ratios reflect those in David Becerra's thesis[^3].
