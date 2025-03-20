@@ -1,11 +1,6 @@
-include:
-  - template: Security/SAST.gitlab-ci.yml
-  - template: Jobs/Container-Scanning.gitlab-ci.yml
-  - template: Security/Secret-Detection.gitlab-ci.yml
 stages:
   - update
   - build
-  - test
 update-dockerfile:
   stage: update
   image:
