@@ -1,6 +1,6 @@
 arch: amd64
 containers:
   - repo: golang
-    tag_filter: ^1\.23-alpine$
+    tag_include: ^1\.23-alpine$
   - repo: alpine
-    tag_filter: ^3$
+    tag_include: ^3$
