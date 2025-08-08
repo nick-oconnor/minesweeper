@@ -3,9 +3,7 @@ stages:
   - build
 update-dockerfile:
   stage: update
-  image:
-    name: registry.ocnr.org/infra/repo-updater:latest
-    entrypoint: [""]
+  image: registry.ocnr.org/infra/repo-updater:latest
   id_tokens:
     VAULT_ID_TOKEN:
       aud: https://vault.ocnr.org
@@ -21,9 +19,9 @@ update-dockerfile:
     - if: $CI_PIPELINE_SOURCE == 'schedule'
 build:
   stage: build
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
+  image: quay.io/buildah/stable:latest
+  variables:
+    STORAGE_DRIVER: vfs
   script:
     - |
       set -e
@@ -39,9 +37,10 @@ build:
       IMAGE_TAGGED="${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}"
       IMAGE_LATEST="${CI_APPLICATION_REPOSITORY}:latest"
 
-      mkdir -p /kaniko/.docker
-      echo "{\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${CI_REGISTRY_USER}\",\"password\":\"${CI_JOB_TOKEN}\"}}}" > /kaniko/.docker/config.json
-      /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/Dockerfile" --destination "${IMAGE_TAGGED}" --destination "${IMAGE_LATEST}"
+      echo "${CI_JOB_TOKEN}" | buildah login -u "${CI_REGISTRY_USER}" --password-stdin "${CI_REGISTRY}"
+      buildah build -t "${IMAGE_TAGGED}" -t "${IMAGE_LATEST}"
+      buildah push "${IMAGE_TAGGED}"
+      buildah push "${IMAGE_LATEST}"
   rules:
     - if: $CI_PIPELINE_SOURCE == 'schedule'
       when: never
