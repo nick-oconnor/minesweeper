@@ -37,7 +37,7 @@ build:
       IMAGE_TAGGED="${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}"
       IMAGE_LATEST="${CI_APPLICATION_REPOSITORY}:latest"
 
-      echo "${CI_JOB_TOKEN}" | buildah login -u "${CI_REGISTRY_USER}" --password-stdin "${CI_REGISTRY}"
+      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
       buildah build -t "${IMAGE_TAGGED}" -t "${IMAGE_LATEST}"
       buildah push "${IMAGE_TAGGED}"
       buildah push "${IMAGE_LATEST}"
