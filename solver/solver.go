@@ -101,7 +101,7 @@ func (s *Solver) nextMove() (*field.Space, MoveType, error) {
 	return nil, 0, nil
 }
 
-// addConstrainedMoves adds fully-constrained moves to the move queue.
+// addConstrainedMoves adds fully constrained moves to the move queue.
 func (s *Solver) addConstrainedMoves(baseMatrix matrix.Matrix) {
 	if len(baseMatrix) == 0 {
 		return

@@ -33,8 +33,7 @@ func (s *Space) UnknownNeighbors() map[*Space]bool {
 	return s.unknownNeighbors
 }
 
-// MineNeighborCount returns the number of mine neighbors of the space. This
-// panics if the space has not been revealed.
+// MineNeighborCount returns the space's number of mine neighbors.
 func (s *Space) MineNeighborCount() int {
 	if s.state != Revealed {
 		print(fmt.Sprintf("retrieved mine neighbors for unknown space %d", s.index))
@@ -42,7 +41,7 @@ func (s *Space) MineNeighborCount() int {
 	return s.mineNeighborCount
 }
 
-// FlaggedNeighborCount returns the number of flagged neighbors of the space.
+// FlaggedNeighborCount returns the space's number of flagged neighbors.
 func (s *Space) FlaggedNeighborCount() int {
 	return s.flaggedNeighborCount
 }

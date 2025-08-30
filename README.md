@@ -2,12 +2,12 @@
 
 ![Gameplay](gameplay.png "Gameplay")
 
-A minesweeper simulator and solver written in Go. The solver has 3 modes, executed in the following preference:
+A minesweeper simulator and solver written in Go. The solver has three modes, executed in the following preference:
 
 ### Fully Constrained
 
-The solver generates a matrix with all known constraints. It transforms the matrix to reduced-row echelon form. It then
-solves all solvable rows.
+The solver generates a matrix with all known constraints. It transforms the matrix to RREF. It then solves all solvable
+rows.
 
 Take the following layout:
 
@@ -30,7 +30,7 @@ And the following unknown spaces with known neighbors:
 A3,B3,C1,C2,C3
 ```
 
-An equation is generated for each of the known spaces which represents its affect on each of the unknown spaces. The
+An equation is generated for each of the known spaces which represents its effect on each of the unknown spaces. The
 coefficients on the LHS indicate whether the unknown space is affected, the coefficients on the RHS are the number of
 unknown mines adjacent to each of the revealed spaces:
 
@@ -40,7 +40,7 @@ unknown mines adjacent to each of the revealed spaces:
 0(A3) + 0(B3) + 1(C1) + 1(C2) + 0(C3) = 1(B1)
 ```
 
-The resulting matrix of coefficients is transformed to reduced-row echelon form:
+The resulting matrix of coefficients is transformed to RREF:
 
 ```
 1 1 0 0 0 = 1
@@ -67,7 +67,7 @@ This algorithm is based on Robert Massaioli's post[^1].
 
 ### Enumeration
 
-The solver enumerates every possible solution to the currently known constraints. If non-overlapping sets of constraints
+The solver generates every possible solution to the currently known constraints. If non-overlapping sets of constraints
 exist, it enumerates each set separately. For each solution found, it records the number of flagged spaces and the
 specific spaces which were revealed.
 
@@ -169,7 +169,7 @@ cd solver/
 go test
 ```
 
-The tests run with visualize enabled:
+The tests run with `visualize` enabled:
 
 ```
 |   | 1 | - |

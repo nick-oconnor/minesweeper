@@ -97,7 +97,7 @@ func (m Matrix) Resolve() (Matrix, error) {
 	return matrix, nil
 }
 
-// Solve returns a list all possible solutions for the matrix.
+// Solve returns a list of all possible solutions for the matrix.
 func (m Matrix) Solve(visualize bool) []*Solution {
 	space := m.mostConstrainedSpace()
 	if space == nil {
@@ -241,8 +241,8 @@ func coupledRows(src Matrix, dst Matrix) (Matrix, Matrix) {
 	return src, dst
 }
 
-// reduce transforms the matrix to reduced-row echelon form. This algorithm is
-// pilfered from https://rosettacode.org/wiki/Reduced_row_echelon_form.
+// reduce transforms the matrix to RREF. This algorithm is pilfered from
+// https://rosettacode.org/wiki/Reduced_row_echelon_form.
 func (m Matrix) reduce() {
 	if len(m) == 0 {
 		return
