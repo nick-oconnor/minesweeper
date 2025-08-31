@@ -10,8 +10,7 @@ update-dockerfile:
   before_script:
     - |
       set -e
-      echo "Using vault auth role: ${VAULT_AUTH_ROLE}"
-      export VAULT_TOKEN=$(vault write -field=token auth/jwt/login role="${VAULT_AUTH_ROLE}" jwt="${VAULT_ID_TOKEN}")
+      export VAULT_TOKEN=$(vault write -field=token auth/jwt/login role=repo-updater jwt="${VAULT_ID_TOKEN}")
       export ACCESS_TOKEN=$(vault kv get -field=access_token "repo-updater/${CI_PROJECT_PATH}")
   script:
     - update-dockerfile-commit
@@ -19,9 +18,16 @@ update-dockerfile:
     - if: $CI_PIPELINE_SOURCE == 'schedule'
 build:
   stage: build
-  image: quay.io/buildah/stable:latest
-  variables:
-    STORAGE_DRIVER: vfs
+  image: registry.ocnr.org/infra/repo-builder:latest
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: https://vault.ocnr.org
+  before_script:
+    - |
+      set -e
+      export VAULT_TOKEN=$(vault write -field=token auth/jwt/login role=repo-builder jwt="${VAULT_ID_TOKEN}")
+      vault kv get -field=config.json ocnr/registries > /secrets/config.json
+      export ACCESS_TOKEN=$(vault kv get -field=access_token "repo-builder/${CI_PROJECT_PATH}")
   script:
     - |
       set -e
@@ -37,8 +43,8 @@ build:
       IMAGE_TAGGED="${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}"
       IMAGE_LATEST="${CI_APPLICATION_REPOSITORY}:latest"
 
-      buildah login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
       buildah build -t "${IMAGE_TAGGED}" -t "${IMAGE_LATEST}"
+      buildah login -u access-token -p "${ACCESS_TOKEN}" "${CI_REGISTRY}"
       buildah push "${IMAGE_TAGGED}"
       buildah push "${IMAGE_LATEST}"
   rules:
