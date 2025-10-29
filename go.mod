@@ -1,3 +1,3 @@
 module gitlab.ocnr.org/apps/minesweeper
 
-go 1.24
+go 1.25
