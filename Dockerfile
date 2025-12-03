@@ -15,7 +15,7 @@ COPY *.pgo ./
 
 RUN go build -v -o /minesweeper
 
-FROM index.docker.io/library/alpine@sha256:85f2b723e106c34644cd5851d7e81ee87da98ac54672b29947c052a45d31dc2f
+FROM index.docker.io/library/alpine@sha256:a107a3c031732299dd9dd607bb13787834db2de38cfa13f1993b7105e4814c60
 
 COPY --from=build /minesweeper /
 
