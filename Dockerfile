@@ -1,4 +1,4 @@
-FROM index.docker.io/library/golang@sha256:217cb265b15f1bce711dda88e3dd2302da61b8b1096d6afe15727a7e96719dd1 AS build
+FROM index.docker.io/library/golang@sha256:72613572613050e1c6da0a585daf8f7d4174eb17a0c9c3a539633d677e3e2979 AS build
 
 WORKDIR /src
 
@@ -15,7 +15,7 @@ COPY *.pgo ./
 
 RUN go build -v -o /minesweeper
 
-FROM index.docker.io/library/alpine@sha256:1882fa4569e0c591ea092d3766c4893e19b8901a8e649de7067188aba3cc0679
+FROM index.docker.io/library/alpine@sha256:59855d3dceb3ae53991193bd03301e082b2a7faa56a514b03527ae0ec2ce3a95
 
 COPY --from=build /minesweeper /
 
