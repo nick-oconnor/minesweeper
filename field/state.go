@@ -7,9 +7,9 @@ import (
 type State int
 
 const (
-	Unknown  State = iota
-	Flagged  State = iota
-	Revealed State = iota
+	Unknown State = iota
+	Flagged
+	Revealed
 )
 
 // String returns a text version of the State enum.

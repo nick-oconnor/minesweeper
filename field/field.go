@@ -175,12 +175,14 @@ func (f *Field) recursiveReveal(space *Space) {
 
 // addRandomMine adds a mine to a random space which is not the given space.
 func (f *Field) addRandomMine(exclude *Space) {
-	for {
-		space := f.spaces[rand.Intn(f.width*f.height)]
-		if space == exclude || space.hasMine {
-			continue
+	availableSpaces := make([]*Space, 0, len(f.spaces))
+	for _, space := range f.spaces {
+		if space != exclude && !space.hasMine {
+			availableSpaces = append(availableSpaces, space)
 		}
-		f.AddMine(space)
-		return
 	}
+	if len(availableSpaces) == 0 {
+		panic("no available spaces for mine placement")
+	}
+	f.AddMine(availableSpaces[rand.Intn(len(availableSpaces))])
 }

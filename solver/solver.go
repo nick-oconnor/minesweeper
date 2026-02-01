@@ -31,41 +31,45 @@ func NewSolver(f *field.Field, visualize bool) *Solver {
 func (s *Solver) Solve() *GameResult {
 	gameResult := &GameResult{}
 	for {
-		var space *field.Space
-		var moveType MoveType
-		var err error
-		for {
-			space, moveType, err = s.nextMove()
-			if err != nil || space != nil {
-				gameResult.MoveCount++
-				if guessTypes[moveType] {
-					gameResult.GuessCount++
-				}
-				break
-			}
-			baseMatrix := matrix.NewMatrix(s.field)
-			s.addConstrainedMoves(baseMatrix)
-			if len(s.moveQueue) > 0 {
-				continue
-			}
-			if s.visualize {
-				fmt.Printf("no moves found by resolving constraints\n\n")
-			}
-			s.addEnumeratedMoves(baseMatrix)
-			if len(s.moveQueue) > 0 {
-				continue
-			}
-			if s.visualize {
-				fmt.Printf("no moves found by enumeration\n\n")
-			}
-			s.addUnconstrainedMove(baseMatrix)
-			if len(s.moveQueue) == 0 {
-				panic("no moves added")
+		space, moveType, err := s.findAndExecuteMove()
+		if space != nil {
+			gameResult.MoveCount++
+			if guessTypes[moveType] {
+				gameResult.GuessCount++
 			}
 		}
 		if err != nil || space == nil || len(s.field.UnknownSpaces()) == 0 {
 			gameResult.Won = len(s.field.UnknownSpaces()) == 0 && err == nil
 			return gameResult
+		}
+	}
+}
+
+// findAndExecuteMove finds the next move to make and executes it.
+func (s *Solver) findAndExecuteMove() (*field.Space, MoveType, error) {
+	for {
+		space, moveType, err := s.nextMove()
+		if err != nil || space != nil {
+			return space, moveType, err
+		}
+		baseMatrix := matrix.NewMatrix(s.field)
+		s.addConstrainedMoves(baseMatrix)
+		if len(s.moveQueue) > 0 {
+			continue
+		}
+		if s.visualize {
+			fmt.Printf("no moves found by resolving constraints\n\n")
+		}
+		s.addEnumeratedMoves(baseMatrix)
+		if len(s.moveQueue) > 0 {
+			continue
+		}
+		if s.visualize {
+			fmt.Printf("no moves found by enumeration\n\n")
+		}
+		s.addUnconstrainedMove(baseMatrix)
+		if len(s.moveQueue) == 0 {
+			panic("no moves added")
 		}
 	}
 }
@@ -137,6 +141,17 @@ func (s *Solver) addConstrainedMoves(baseMatrix matrix.Matrix) {
 // reveals it. This algorithm is based on
 // https://www.cs.toronto.edu/~cvs/minesweeper/minesweeper.pdf.
 func (s *Solver) addEnumeratedMoves(baseMatrix matrix.Matrix) {
+	bestSpace, bestProbability := s.findBestMove(baseMatrix)
+	if len(s.moveQueue) > 0 {
+		return
+	}
+	if bestSpace != nil {
+		s.addEnumerationGuess(bestSpace, bestProbability)
+	}
+}
+
+// findBestMove finds the space with the highest probability of not containing a mine.
+func (s *Solver) findBestMove(baseMatrix matrix.Matrix) (*field.Space, float64) {
 	var bestSpace *field.Space
 	bestProbability := 0.0
 	for space, probability := range s.probabilityPerSpace(baseMatrix) {
@@ -151,18 +166,18 @@ func (s *Solver) addEnumeratedMoves(baseMatrix matrix.Matrix) {
 			bestProbability = probability
 		}
 	}
-	if len(s.moveQueue) > 0 {
-		return
+	return bestSpace, bestProbability
+}
+
+// addEnumerationGuess adds an enumeration guess if the probability is better than unconstrained spaces.
+func (s *Solver) addEnumerationGuess(space *field.Space, probability float64) {
+	minesRemaining := s.field.MineCount() - s.field.FlaggedCount()
+	fieldProbability := 1 - float64(minesRemaining)/float64(len(s.field.UnknownSpaces()))
+	if s.visualize {
+		fmt.Printf("unconstrained mine-free probability\n\n %.2f\n\n", fieldProbability)
 	}
-	if bestSpace != nil {
-		minesRemaining := s.field.MineCount() - s.field.FlaggedCount()
-		fieldProbability := 1 - float64(minesRemaining)/float64(len(s.field.UnknownSpaces()))
-		if s.visualize {
-			fmt.Printf("unconstrained mine-free probability\n\n %.2f\n\n", fieldProbability)
-		}
-		if bestProbability > fieldProbability {
-			s.moveQueue[bestSpace] = &MoveInfo{field.Revealed, EnumerationGuess}
-		}
+	if probability > fieldProbability {
+		s.moveQueue[space] = &MoveInfo{field.Revealed, EnumerationGuess}
 	}
 }
 

@@ -9,10 +9,10 @@ import (
 type MoveType int
 
 const (
-	Constrained        MoveType = iota
-	Enumeration        MoveType = iota
-	EnumerationGuess   MoveType = iota
-	UnconstrainedGuess MoveType = iota
+	Constrained MoveType = iota
+	Enumeration
+	EnumerationGuess
+	UnconstrainedGuess
 )
 
 // String returns a text version of the MoveType enum.
