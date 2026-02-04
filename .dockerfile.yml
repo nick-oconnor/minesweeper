@@ -1,6 +1,0 @@
-arch: amd64
-containers:
-  - repo: index.docker.io/library/golang
-    tag_include: ^1\.25-alpine$
-  - repo: index.docker.io/library/alpine
-    tag_include: ^3$
