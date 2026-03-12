@@ -2,7 +2,7 @@
 
 ![Gameplay](gameplay.png "Gameplay")
 
-A minesweeper simulator and solver written in Go. The solver has three modes, executed in the following preference:
+A minesweeper simulator and solver written in Rust. The solver has three modes, executed in the following preference:
 
 ### Fully Constrained
 
@@ -100,31 +100,34 @@ Benchmarks were performed on an AMD Ryzen 9 9950X CPU.
 For beginner fields:
 
 ```
-$ time ./minesweeper -width 9 -height 9 -mines 10 -games 1000000
-Games Simulated: 1000000, Win Ratio: 91.0%, Moves/Win: 30.4, Guesses/Win: 1.62
-real	0m 23.35s
-user	7m 14.49s
-sys	0m 30.15s
+$ docker run --rm minesweeper --width 9 --height 9 --mines 10 --games 1000000
+Games Simulated: 1000000, Win Ratio: 91.0%, Moves/Win: 30.4, Guesses/Win: 1.61
+
+real    0m3.403s
+user    1m47.428s
+sys     0m0.592
 ```
 
 For advanced fields:
 
 ```
-$ time ./minesweeper -width 16 -height 16 -mines 40 -games 1000000
-Games Simulated: 1000000, Win Ratio: 75.4%, Moves/Win: 123.4, Guesses/Win: 2.11
-real	2m 33.82s
-user	54m 5.89s
-sys	3m 5.59s
+$ docker run --rm minesweeper --width 16 --height 16 --mines 40 --games 1000000
+Games Simulated: 1000000, Win Ratio: 75.6%, Moves/Win: 123.1, Guesses/Win: 2.08
+
+real    0m25.212s
+user    13m21.951s
+sys     0m3.652s
 ```
 
 For expert fields:
 
 ```
-$ time ./minesweeper -width 30 -height 16 -mines 99 -games 1000000
-Games Simulated: 1000000, Win Ratio: 31.9%, Moves/Win: 309.6, Guesses/Win: 4.24
-real	39m 35.47s
-user	14h 53m 31s
-sys	31m 20.34s
+$ docker run --rm minesweeper --width 30 --height 16 --mines 99 --games 1000000
+Games Simulated: 1000000, Win Ratio: 32.6%, Moves/Win: 309.0, Guesses/Win: 4.10
+
+real    2m16.864s
+user    70m48.977s
+sys     0m9.216
 ```
 
 The above win ratios reflect those in David Becerra's thesis[^3].
@@ -134,44 +137,38 @@ The above win ratios reflect those in David Becerra's thesis[^3].
 You can compile and execute the binary with:
 
 ```
-go build -v
-./minesweeper --help
+cargo build --release
+./target/release/minesweeper --help
 ```
 
 Or build a container and execute it with:
 
 ```
 docker build -t minesweeper .
-docker run -it --rm minesweeper --help
+docker run --rm minesweeper --help
 ```
 
 The available flags are:
 
 ```
-  -games int
-        number of games (default 1000)
-  -height int
-        height of the field (default 16)
-  -mines int
-        number of mines (default 99)
-  -visualize
-        visualize gameplay
-  -progress
-        show progress
-  -width int
-        width of the field (default 30)
+  -w, --width <WIDTH>        width of the field [default: 30]
+  -H, --height <HEIGHT>      height of the field [default: 16]
+  -m, --mines <MINES>        number of mines [default: 99]
+  -g, --games <GAMES>        number of games [default: 1000]
+  -v, --visualize            visualize gameplay
+  -p, --progress             show progress
+  -h, --help                 Print help
 ```
 
-Only a single game is played if `visualize` is specified.
+Only a single game is played if `--visualize` is specified.
 
 ## Testing
 
 ```
-cd solver/
-go test
+cargo test -- --nocapture
 ```
 
-The tests run with `visualize` enabled:
+The tests run with visualization output enabled:
 
 ```
 |   | 1 | - |
