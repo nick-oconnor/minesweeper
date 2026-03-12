@@ -156,6 +156,8 @@ The available flags are:
         number of mines (default 99)
   -visualize
         visualize gameplay
+  -progress
+        show progress
   -width int
         width of the field (default 30)
 ```

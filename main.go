@@ -71,7 +71,7 @@ func main() {
 	height := flag.Int("height", 16, "height of the field")
 	mineCount := flag.Int("mines", 99, "number of mines")
 	gameCount := flag.Int("games", 1000, "number of games")
-	progress := flag.Bool("progress", true, "show progress")
+	progress := flag.Bool("progress", false, "show progress")
 	visualize := flag.Bool("visualize", false, "visualize gameplay")
 	cpuprofile := flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
