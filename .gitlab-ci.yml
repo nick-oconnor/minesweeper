@@ -6,15 +6,15 @@ build:
   image: quay.io/buildah/stable:latest
   before_script:
     - |
-      export STORAGE_DRIVER=vfs
       export CONTAINER_TAG=$(cat VERSION | sed 's/^v//; s/^.*://; s/[-+].*//')
       export IMAGE_TAGGED="${CI_REGISTRY_IMAGE}:${CONTAINER_TAG}"
       export IMAGE_LATEST="${CI_REGISTRY_IMAGE}:latest"
+      export CACHE_IMAGE="${CI_REGISTRY}/${BUILDAH_CACHE_REPO}/debian-trixie"
   script:
     - |
       set -e
       buildah login -u build-token -p "${BUILD_TOKEN}" "${CI_REGISTRY}"
-      buildah build -t "${IMAGE_TAGGED}" -t "${IMAGE_LATEST}"
+      buildah build --layers --cache-from "${CACHE_IMAGE}" --cache-to "${CACHE_IMAGE}" -t "${IMAGE_TAGGED}" -t "${IMAGE_LATEST}"
       buildah push "${IMAGE_TAGGED}"
       buildah push "${IMAGE_LATEST}"
   rules:
