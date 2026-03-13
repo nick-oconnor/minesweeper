@@ -30,7 +30,7 @@ impl Solver {
     }
 
     #[cfg(test)]
-    pub fn probability_per_space_test(&self) -> HashMap<SpaceIdx, f64> {
+    pub fn probability_per_space_test(&self) -> HashMap<SpaceIdx, f32> {
         let base_matrix = Matrix::new(&self.field);
         self.probability_per_space(&base_matrix)
     }
@@ -179,15 +179,15 @@ impl Solver {
         }
     }
 
-    fn find_best_move(&mut self, base_matrix: &Matrix) -> (Option<SpaceIdx>, f64) {
+    fn find_best_move(&mut self, base_matrix: &Matrix) -> (Option<SpaceIdx>, f32) {
         let mut best_space = None;
         let mut best_probability = 0.0;
 
         for (space_idx, probability) in self.probability_per_space(base_matrix) {
-            if (probability - 0.0).abs() < EPSILON {
+            if eq(probability, 0.0) {
                 self.move_queue
                     .insert(space_idx, MoveInfo::new(State::Flagged, MoveType::Enumeration));
-            } else if (probability - 1.0).abs() < EPSILON {
+            } else if eq(probability, 1.0) {
                 self.move_queue.insert(
                     space_idx,
                     MoveInfo::new(State::Revealed, MoveType::Enumeration),
@@ -203,10 +203,10 @@ impl Solver {
         (best_space, best_probability)
     }
 
-    fn add_enumeration_guess(&mut self, space_idx: SpaceIdx, probability: f64) {
+    fn add_enumeration_guess(&mut self, space_idx: SpaceIdx, probability: f32) {
         let mines_remaining = self.field.mine_count() - self.field.flagged_count();
         let field_probability =
-            1.0 - (mines_remaining as f64 / self.field.unknown_spaces().len() as f64);
+            1.0 - (mines_remaining as f32 / self.field.unknown_spaces().len() as f32);
 
         if self.visualize {
             println!("unconstrained mine-free probability\n\n {:.2}\n", field_probability);
@@ -269,7 +269,7 @@ impl Solver {
         }
     }
 
-    fn probability_per_space(&self, base_matrix: &Matrix) -> HashMap<SpaceIdx, f64> {
+    fn probability_per_space(&self, base_matrix: &Matrix) -> HashMap<SpaceIdx, f32> {
         let mut solutions_by_part = Vec::new();
 
         for (part_index, part) in base_matrix.split_coupled().iter().enumerate() {
@@ -321,7 +321,7 @@ impl Solver {
             }
 
             for (space_idx, revealed_count) in revealed_space_counts {
-                let probability = revealed_count as f64 / solution_count as f64;
+                let probability = revealed_count as f32 / solution_count as f32;
                 probabilities.insert(space_idx, probability);
 
                 if self.visualize {

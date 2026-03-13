@@ -1,6 +1,6 @@
 use super::cell::Cell;
 use super::row::Row;
-use crate::field::{constants::EPSILON, Field, SpaceIdx, State};
+use crate::field::{constants::eq, Field, SpaceIdx, State};
 use std::collections::{HashMap, HashSet};
 
 pub struct Matrix {
@@ -38,7 +38,7 @@ impl Matrix {
 
             let space = &field.spaces()[revealed_idx.get()];
             let rhs = (space.mine_neighbor_count().unwrap_or(0) as i16
-                - space.flagged_neighbor_count() as i16) as f64;
+                - space.flagged_neighbor_count() as i16) as f32;
             cells.push(Cell::new(rhs, revealed_idx, State::Unknown));
 
             rows.push(Row::new(cells));
@@ -89,19 +89,19 @@ impl Matrix {
 
             let rhs = row.rhs().value;
 
-            if (rhs - lhs_negative_sum).abs() < EPSILON {
+            if eq(rhs, lhs_negative_sum) {
                 for cell in row.lhs() {
                     if cell.value < 0.0 {
                         operations.push((cell.space_idx, State::Flagged));
-                    } else if cell.value != 0.0 {
+                    } else if cell.is_non_zero() {
                         operations.push((cell.space_idx, State::Revealed));
                     }
                 }
-            } else if (rhs - lhs_positive_sum).abs() < EPSILON {
+            } else if eq(rhs, lhs_positive_sum) {
                 for cell in row.lhs() {
                     if cell.value < 0.0 {
                         operations.push((cell.space_idx, State::Revealed));
-                    } else if cell.value != 0.0 {
+                    } else if cell.is_non_zero() {
                         operations.push((cell.space_idx, State::Flagged));
                     }
                 }
@@ -307,7 +307,7 @@ impl Matrix {
             }
 
             let mut i = r;
-            while self.rows[i].cells[lead].value == 0.0 {
+            while self.rows[i].cells[lead].is_zero() {
                 i += 1;
                 if i == row_count {
                     i = r;

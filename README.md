@@ -103,31 +103,31 @@ For beginner fields:
 $ docker run --rm minesweeper --width 9 --height 9 --mines 10 --games 1000000
 Games Simulated: 1000000, Win Ratio: 91.0%, Moves/Win: 30.4, Guesses/Win: 1.61
 
-real    0m3.403s
-user    1m47.428s
-sys     0m0.592
+real    0m3.392s
+user    1m47.184s
+sys     0m0.577s
 ```
 
 For advanced fields:
 
 ```
 $ docker run --rm minesweeper --width 16 --height 16 --mines 40 --games 1000000
-Games Simulated: 1000000, Win Ratio: 75.6%, Moves/Win: 123.1, Guesses/Win: 2.08
+Games Simulated: 1000000, Win Ratio: 75.6%, Moves/Win: 123.1, Guesses/Win: 2.09
 
-real    0m25.212s
-user    13m21.951s
-sys     0m3.652s
+real    0m24.087s
+user    12m45.056s
+sys     0m4.072s
 ```
 
 For expert fields:
 
 ```
 $ docker run --rm minesweeper --width 30 --height 16 --mines 99 --games 1000000
-Games Simulated: 1000000, Win Ratio: 32.6%, Moves/Win: 309.0, Guesses/Win: 4.10
+Games Simulated: 1000000, Win Ratio: 32.5%, Moves/Win: 309.1, Guesses/Win: 4.11
 
-real    2m16.864s
-user    70m48.977s
-sys     0m9.216
+real    3m36.941s
+user    64m41.138s
+sys     0m9.847s
 ```
 
 The above win ratios reflect those in David Becerra's thesis[^3].

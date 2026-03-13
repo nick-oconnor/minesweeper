@@ -325,7 +325,7 @@ fn assert_field(f: &Field, layout: Vec<Vec<&str>>) {
     }
 }
 
-fn assert_probabilities(solver: &Solver, want: HashMap<usize, f64>) {
+fn assert_probabilities(solver: &Solver, want: HashMap<usize, f32>) {
     use crate::field::SpaceIdx;
 
     let probabilities = solver.probability_per_space_test();

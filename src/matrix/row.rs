@@ -1,4 +1,5 @@
 use super::cell::Cell;
+use crate::field::constants::{gt, lt};
 
 pub struct Row {
     pub cells: Vec<Cell>,
@@ -25,7 +26,7 @@ impl Row {
     pub fn constrained_lhs(&self) -> Vec<&Cell> {
         self.lhs()
             .iter()
-            .filter(|cell| cell.value != 0.0)
+            .filter(|cell| cell.is_non_zero())
             .collect()
     }
 
@@ -42,7 +43,7 @@ impl Row {
         }
 
         let rhs_value = self.rhs().value;
-        if rhs_value > lhs_positive_sum || rhs_value < lhs_negative_sum {
+        if gt(rhs_value, lhs_positive_sum) || lt(rhs_value, lhs_negative_sum) {
             return Err(format!(
                 "invalid constraint for row {}",
                 self.rhs().space_idx.get()

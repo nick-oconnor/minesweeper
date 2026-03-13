@@ -32,7 +32,7 @@ pub type Dimension = NonZeroUsize;
 /// Constants for the game
 pub mod constants {
     /// Epsilon for floating point comparisons
-    pub const EPSILON: f64 = 1e-10;
+    pub const EPSILON: f32 = 1e-6;
 
     /// Maximum number of neighbors a space can have (corner = 3, edge = 5, center = 8)
     pub const MAX_NEIGHBORS: usize = 8;
@@ -42,4 +42,19 @@ pub mod constants {
 
     /// Edge space neighbor count
     pub const EDGE_NEIGHBORS: usize = 5;
+
+    /// Check if two floats are equal (with epsilon tolerance)
+    pub fn eq(a: f32, b: f32) -> bool {
+        (a - b).abs() < EPSILON
+    }
+
+    /// Check if a is less than b (with epsilon tolerance)
+    pub fn lt(a: f32, b: f32) -> bool {
+        a < b - EPSILON
+    }
+
+    /// Check if a is greater than b (with epsilon tolerance)
+    pub fn gt(a: f32, b: f32) -> bool {
+        a > b + EPSILON
+    }
 }
